@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       }
     });
 
-    const firstColumn = taskyspace.columns.sort((a, b) => a.order - b.order)[0];
+    const firstColumn = taskyspace.columns.sort((a: any, b: any) => a.order - b.order)[0];
 
     // 3. 🔥 CREAMOS EL BACKLOG PERSONALIZADO 🔥
     if (customTasks && customTasks.length > 0 && firstColumn) {

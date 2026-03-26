@@ -4,24 +4,15 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Layout, Users, Plus, Search, Target, Trash2, ExternalLink, User as UserIcon, X, ChevronDown, BarChart2, CheckCircle, Clock, ArchiveRestore, AlertCircle, AlertTriangle, ListTodo, Play, Check, Layers, List } from 'lucide-react';
+// 🔥 AÑADIMOS 'Menu' A LOS ICONOS 🔥
+import { Layout, Users, Plus, Search, Target, Trash2, ExternalLink, User as UserIcon, X, ChevronDown, BarChart2, CheckCircle, Clock, ArchiveRestore, AlertCircle, AlertTriangle, ListTodo, Play, Check, Layers, List, Menu } from 'lucide-react';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import TaskListView from '../../components/TaskListView';
+
 import TaskModal from '../../components/TaskModal';
+import TaskListView from '../../components/TaskListView';
 
-// --- UTILIDAD DE COLORES PARA TIPOS DE TAREA 🔥 ---
-const getTypeColor = (type: string) => {
-  switch(type) {
-      case 'Bug': return 'bg-red-500/20 text-red-400';
-      case 'Feature': return 'bg-purple-500/20 text-purple-400';
-      case 'Doc': return 'bg-blue-500/20 text-blue-400';
-      case 'Artefacto': return 'bg-orange-500/20 text-orange-400'; // Naranja
-      case 'Spike': return 'bg-pink-500/20 text-pink-400';         // Rosa
-      default: return 'bg-gray-700/50 text-gray-400';
-  }
-};
-
+// --- COMPONENTE CUSTOM: SELECTOR DE SPRINTS ---
 const SprintSelector = ({ viewedSprint, sprints, setSelectedSprintId }: any) => {
   const [isOpen, setIsOpen] = useState(false);
   const availableSprints = sprints.filter((s:any) => s.status !== 'PLANNED');
@@ -30,12 +21,12 @@ const SprintSelector = ({ viewedSprint, sprints, setSelectedSprintId }: any) => 
 
   return (
     <div className="relative z-[100]">
-      <button onClick={() => setIsOpen(!isOpen)} className="flex items-center gap-3 bg-[#1a1e23] border border-[#30363d] hover:border-emerald-500/50 px-4 py-2.5 rounded-xl text-white font-bold transition-all shadow-sm">
-        {viewedSprint ? viewedSprint.name : 'Seleccionar Sprint'}
-        <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md ${viewedSprint?.status === 'COMPLETED' ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+      <button onClick={() => setIsOpen(!isOpen)} className="flex items-center gap-2 md:gap-3 bg-[#1a1e23] border border-[#30363d] hover:border-emerald-500/50 px-3 md:px-4 py-2.5 rounded-xl text-white font-bold transition-all shadow-sm">
+        <span className="truncate max-w-[120px] md:max-w-none">{viewedSprint ? viewedSprint.name : 'Seleccionar Sprint'}</span>
+        <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md hidden sm:inline-block ${viewedSprint?.status === 'COMPLETED' ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
           {viewedSprint?.status === 'COMPLETED' ? 'Finalizado' : 'Activo'}
         </span>
-        <ChevronDown size={16} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={16} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''} shrink-0`} />
       </button>
       
       {isOpen && (
@@ -48,8 +39,8 @@ const SprintSelector = ({ viewedSprint, sprints, setSelectedSprintId }: any) => 
                 onClick={() => { setSelectedSprintId(sprint.id); setIsOpen(false); }}
                 className={`w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-[#22272b] transition-colors border-b border-[#30363d] last:border-0 ${viewedSprint?.id === sprint.id ? 'bg-emerald-500/10' : ''}`}
               >
-                <span className={`font-bold ${viewedSprint?.id === sprint.id ? 'text-emerald-400' : 'text-gray-300'}`}>{sprint.name}</span>
-                <span className="text-[10px] uppercase text-gray-500">{sprint.status === 'COMPLETED' ? 'Terminado' : 'Activo'}</span>
+                <span className={`font-bold truncate pr-2 ${viewedSprint?.id === sprint.id ? 'text-emerald-400' : 'text-gray-300'}`}>{sprint.name}</span>
+                <span className="text-[10px] uppercase text-gray-500 shrink-0">{sprint.status === 'COMPLETED' ? 'Terminado' : 'Activo'}</span>
               </button>
             ))}
           </div>
@@ -59,11 +50,26 @@ const SprintSelector = ({ viewedSprint, sprints, setSelectedSprintId }: any) => 
   );
 };
 
+// Utilidad de colores para tipos de tarea
+const getTypeColor = (type: string) => {
+  switch(type) {
+      case 'Bug': return 'bg-red-500/20 text-red-400';
+      case 'Feature': return 'bg-purple-500/20 text-purple-400';
+      case 'Doc': return 'bg-blue-500/20 text-blue-400';
+      case 'Artefacto': return 'bg-orange-500/20 text-orange-400';
+      case 'Spike': return 'bg-pink-500/20 text-pink-400';
+      default: return 'bg-gray-700/50 text-gray-400';
+  }
+};
+
 interface TaskyspaceClientProps { space: any; currentUser: any; userRole: string; }
 
 export default function TaskyspaceClient({ space, currentUser, userRole }: TaskyspaceClientProps) {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
+  
+  // 🔥 NUEVO: ESTADO PARA EL MENÚ EN CELULAR 🔥
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const [activeView, setActiveView] = useState<'resumen' | 'backlog' | 'tablero' | 'miembros' | 'epicas' | 'lista'>('backlog');
   
@@ -193,13 +199,9 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
     movedTask.columnId = destination.droppableId;
 
-    // 🔥 MAGIA: Asigna fecha de cierre si cayó en la columna final 🔥
     if (source.droppableId !== destination.droppableId) {
-      if (destination.droppableId === doneColumn?.id) {
-          movedTask.closedAt = new Date().toISOString();
-      } else if (source.droppableId === doneColumn?.id) {
-          movedTask.closedAt = null; // Si lo sacan de Listo, se borra la fecha
-      }
+      if (destination.droppableId === doneColumn?.id) { movedTask.closedAt = new Date().toISOString(); } 
+      else if (source.droppableId === doneColumn?.id) { movedTask.closedAt = null; }
     }
 
     const destCol = newColumns.find((c: any) => c.id === destination.droppableId);
@@ -229,7 +231,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
         }
         await fetch('/api/tasks/reorder', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tasks: tasksToUpdate }) });
         
-        // Disparamos un save adicional si se movió a la columna Done (Para guardar el closedAt)
         if (source.droppableId !== destination.droppableId && (destination.droppableId === doneColumn?.id || source.droppableId === doneColumn?.id)) {
             await fetch('/api/tasks', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ taskId: movedTask.id, closedAt: movedTask.closedAt }) });
         }
@@ -315,19 +316,21 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     return (
       <Draggable draggableId={task.id} index={index} isDragDisabled={!canEdit}>
         {(provided, snapshot) => (
-          <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} onClick={() => setEditingTask(task)} className={`flex items-center gap-4 bg-[#22272b] p-3 rounded-lg border border-[#30363d] hover:border-emerald-500/50 cursor-pointer mb-2 transition-colors ${snapshot.isDragging ? 'shadow-xl border-emerald-500 z-50' : ''}`}>
+          <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} onClick={() => setEditingTask(task)} className={`flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4 bg-[#22272b] p-3 rounded-lg border border-[#30363d] hover:border-emerald-500/50 cursor-pointer mb-2 transition-colors ${snapshot.isDragging ? 'shadow-xl border-emerald-500 z-50' : ''}`}>
             
-            <div className="flex flex-col gap-1 w-24 shrink-0">
-              {/* 🔥 COLORES DINÁMICOS AQUÍ 🔥 */}
+            <div className="flex flex-col gap-1 w-20 sm:w-24 shrink-0">
               <span className={`text-[9px] w-max px-2 py-0.5 rounded font-bold uppercase ${getTypeColor(task.type)}`}>{task.type || 'Task'}</span>
               {epic && <span className="text-[8px] truncate px-1.5 py-0.5 rounded border border-purple-500/50 bg-purple-500/10 text-purple-300 font-extrabold shadow-[0_0_10px_rgba(168,85,247,0.4)]">🚀 {epic.name}</span>}
             </div>
 
-            <p className="text-sm text-white flex-1 truncate">{task.title}</p>
-            {task.priority && <span title={task.priority} className={`w-2.5 h-2.5 rounded-full shrink-0 ${task.priority === 'Alta' ? 'bg-red-500' : task.priority === 'Baja' ? 'bg-blue-500' : 'bg-yellow-500'}`}></span>}
-            <span className="text-xs font-bold text-gray-500 bg-[#161a1d] px-2 py-1 rounded-md shrink-0"><Clock size={12} className="inline mr-1"/>{task.effortHours || 0}h</span>
-            <div className="w-6 h-6 rounded-full bg-emerald-900 border border-[#30363d] flex items-center justify-center text-[10px] font-bold text-white shrink-0 overflow-hidden">
-              {task.assignee ? (task.assignee.image ? <img src={task.assignee.image} referrerPolicy="no-referrer" className="w-full h-full object-cover" alt="avatar" /> : task.assignee.name.charAt(0)) : '?'}
+            <p className="text-sm text-white flex-1 min-w-[150px] truncate">{task.title}</p>
+            
+            <div className="flex items-center gap-3 shrink-0 ml-auto">
+              {task.priority && <span title={task.priority} className={`w-2.5 h-2.5 rounded-full ${task.priority === 'Alta' ? 'bg-red-500' : task.priority === 'Baja' ? 'bg-blue-500' : 'bg-yellow-500'}`}></span>}
+              <span className="text-xs font-bold text-gray-500 bg-[#161a1d] px-2 py-1 rounded-md flex items-center"><Clock size={12} className="mr-1"/>{task.effortHours || 0}h</span>
+              <div className="w-6 h-6 rounded-full bg-emerald-900 border border-[#30363d] flex items-center justify-center text-[10px] font-bold text-white overflow-hidden">
+                {task.assignee ? (task.assignee.image ? <img src={task.assignee.image} referrerPolicy="no-referrer" className="w-full h-full object-cover" alt="avatar" /> : task.assignee.name.charAt(0)) : '?'}
+              </div>
             </div>
           </div>
         )}
@@ -352,29 +355,26 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
             >
               {isAdmin && isViewedSprintActive && <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(colId, task.id); }} className="absolute top-2 right-2 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity z-10"><Trash2 size={14} /></button>}
               
-              <div className="flex gap-2 items-center mb-2 flex-wrap">
-                  {/* 🔥 COLORES DINÁMICOS AQUÍ 🔥 */}
+              <div className="flex gap-2 items-center mb-2 flex-wrap pr-4">
                   <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${getTypeColor(task.type)}`}>{task.type || 'Task'}</span>
-                  
                   {epic && (
-                    <span className="text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-purple-500/50 bg-purple-500/10 text-purple-300 font-extrabold shadow-[0_0_10px_rgba(168,85,247,0.4)]">
+                    <span className="text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-purple-500/50 bg-purple-500/10 text-purple-300 font-extrabold shadow-[0_0_10px_rgba(168,85,247,0.4)] truncate max-w-[120px]">
                       🚀 {epic.name}
                     </span>
                   )}
-
                   <span title={`Prioridad: ${task.priority || 'Media'}`} className={`ml-auto w-2 h-2 rounded-full shrink-0 ${task.priority === 'Alta' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' : task.priority === 'Baja' ? 'bg-blue-500' : 'bg-yellow-500'}`}></span>
-                  {task.isBlocked && <AlertCircle size={14} className="text-red-400" title="¡Bloqueado!" />}
+                  {task.isBlocked && <AlertCircle size={14} className="text-red-400 shrink-0" title="¡Bloqueado!" />}
               </div>
-              <p className="text-sm text-white mb-3 pr-6 leading-relaxed select-none">{task.title}</p>
+              <p className="text-sm text-white mb-3 pr-2 leading-relaxed select-none">{task.title}</p>
               <div className="flex items-center justify-between border-t border-[#30363d] pt-2 mt-2">
                 <span className="text-xs font-bold text-gray-500 flex items-center gap-1 bg-[#1a1e23] px-2 py-1 rounded-md border border-[#30363d]"><Clock size={12}/> {task.effortHours || 0}h</span>
                 <div className="flex items-center gap-2">
                   {canEdit && isViewedSprintActive ? (
-                    <button onClick={(e) => { e.stopPropagation(); setActiveDropdown(isDropdownActive ? null : task.id); }} className="flex items-center gap-1 text-xs text-gray-400 hover:text-emerald-400 transition-colors"><span className="max-w-[80px] truncate font-medium">{task.assignee ? task.assignee.name.split(' ')[0] : 'Sin asignar'}</span><ChevronDown size={12} className={`opacity-50 transition-transform ${isDropdownActive ? 'rotate-180' : ''}`} /></button>
-                  ) : (<span className="text-xs text-gray-500">{task.assignee ? task.assignee.name.split(' ')[0] : 'Sin asignar'}</span>)}
+                    <button onClick={(e) => { e.stopPropagation(); setActiveDropdown(isDropdownActive ? null : task.id); }} className="flex items-center gap-1 text-xs text-gray-400 hover:text-emerald-400 transition-colors"><span className="max-w-[70px] truncate font-medium">{task.assignee ? task.assignee.name.split(' ')[0] : 'Sin asignar'}</span><ChevronDown size={12} className={`opacity-50 transition-transform ${isDropdownActive ? 'rotate-180' : ''}`} /></button>
+                  ) : (<span className="text-xs text-gray-500 max-w-[70px] truncate">{task.assignee ? task.assignee.name.split(' ')[0] : 'Sin asignar'}</span>)}
                   
                   {task.assignee && (
-                    <div className="w-6 h-6 rounded-full bg-emerald-900 border border-[#30363d] flex items-center justify-center text-[10px] font-bold text-white overflow-hidden" title={task.assignee.name}>
+                    <div className="w-6 h-6 rounded-full bg-emerald-900 border border-[#30363d] flex items-center justify-center text-[10px] font-bold text-white overflow-hidden shrink-0" title={task.assignee.name}>
                         {task.assignee.image ? <img src={task.assignee.image} referrerPolicy="no-referrer" className="w-full h-full object-cover" alt="avatar"/> : task.assignee.name.charAt(0)}
                     </div>
                   )}
@@ -420,28 +420,51 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
       )}
 
       <div className="flex h-screen bg-[#1d2125] text-[#c9d1d9] font-sans overflow-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
-        <aside className="w-64 bg-[#161a1d] border-r border-[#30363d] flex flex-col shrink-0 relative z-20">
-          <div className="h-16 flex items-center gap-3 px-4 border-b border-[#30363d]">
-            <div className="w-8 h-8 rounded bg-emerald-950 border border-emerald-500 flex items-center justify-center text-emerald-400 font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)]">{space.name.charAt(0).toUpperCase()}</div>
-            <div className="overflow-hidden"><h2 className="text-white font-bold truncate text-sm">{space.name}</h2><p className="text-xs text-emerald-500 truncate font-medium">Rol: {userRole}</p></div>
+        
+        {/* 🔥 OVERLAY OSCURO PARA MÓVIL CUANDO EL MENÚ ESTÁ ABIERTO 🔥 */}
+        {isMobileMenuOpen && (
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" 
+            onClick={() => setIsMobileMenuOpen(false)} 
+          />
+        )}
+
+        {/* 🔥 PANEL LATERAL (RESPONSIVO) 🔥 */}
+        <aside className={`w-64 bg-[#161a1d] border-r border-[#30363d] flex flex-col shrink-0 fixed md:relative z-50 md:z-20 h-full transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}`}>
+          <div className="h-16 flex items-center justify-between md:justify-start gap-3 px-4 border-b border-[#30363d]">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-8 h-8 rounded bg-emerald-950 border border-emerald-500 flex items-center justify-center text-emerald-400 font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)] shrink-0">{space.name.charAt(0).toUpperCase()}</div>
+              <div className="overflow-hidden"><h2 className="text-white font-bold truncate text-sm">{space.name}</h2><p className="text-xs text-emerald-500 truncate font-medium">Rol: {userRole}</p></div>
+            </div>
+            {/* Botón para cerrar menú solo en móvil */}
+            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-gray-400 hover:text-white p-1">
+              <X size={20} />
+            </button>
           </div>
+          
           <nav className="flex-1 overflow-y-auto p-3 space-y-1">
             <p className="text-xs font-bold text-gray-500 px-3 py-2 uppercase tracking-wider">Planificación</p>
-            <button onClick={() => setActiveView('resumen')} className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg font-medium transition-colors ${activeView === 'resumen' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-gray-400 hover:text-white hover:bg-[#2c333b]'}`}><BarChart2 size={16} /> Resumen</button>
-            <button onClick={() => setActiveView('backlog')} className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg font-medium transition-colors ${activeView === 'backlog' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-gray-400 hover:text-white hover:bg-[#2c333b]'}`}><ListTodo size={16} /> Backlog & Sprints</button>
-            <button onClick={() => setActiveView('tablero')} className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg font-medium transition-colors ${activeView === 'tablero' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-gray-400 hover:text-white hover:bg-[#2c333b]'}`}><Layout size={16} /> Tablero Activo</button>
-            <button onClick={() => setActiveView('epicas')} className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg font-medium transition-colors ${activeView === 'epicas' ? 'text-purple-400 bg-purple-500/10 border border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.1)]' : 'text-gray-400 hover:text-white hover:bg-[#2c333b]'}`}><Layers size={16} className={activeView === 'epicas' ? 'text-purple-400' : ''} /> Mapa de Épicas</button>
+            <button onClick={() => { setActiveView('resumen'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg font-medium transition-colors ${activeView === 'resumen' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-gray-400 hover:text-white hover:bg-[#2c333b]'}`}><BarChart2 size={16} /> Resumen</button>
+            <button onClick={() => { setActiveView('backlog'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg font-medium transition-colors ${activeView === 'backlog' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-gray-400 hover:text-white hover:bg-[#2c333b]'}`}><ListTodo size={16} /> Backlog & Sprints</button>
+            <button onClick={() => { setActiveView('tablero'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg font-medium transition-colors ${activeView === 'tablero' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-gray-400 hover:text-white hover:bg-[#2c333b]'}`}><Layout size={16} /> Tablero Activo</button>
+            <button onClick={() => { setActiveView('lista'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg font-medium transition-colors ${activeView === 'lista' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-gray-400 hover:text-white hover:bg-[#2c333b]'}`}><List size={16} className={activeView === 'lista' ? 'text-emerald-400' : ''} /> Ver en Lista</button>
+            <button onClick={() => { setActiveView('epicas'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg font-medium transition-colors ${activeView === 'epicas' ? 'text-purple-400 bg-purple-500/10 border border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.1)]' : 'text-gray-400 hover:text-white hover:bg-[#2c333b]'}`}><Layers size={16} className={activeView === 'epicas' ? 'text-purple-400' : ''} /> Mapa de Épicas</button>
+            
             <p className="text-xs font-bold text-gray-500 px-3 py-2 uppercase tracking-wider mt-4">Gestión</p>
-            <button onClick={() => setActiveView('miembros')} className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg font-medium transition-colors ${activeView === 'miembros' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-gray-400 hover:text-white hover:bg-[#2c333b]'}`}><Users size={16} /> Equipo</button>
-            <button onClick={() => setActiveView('lista')} className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg font-medium transition-colors ${activeView === 'lista' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-gray-400 hover:text-white hover:bg-[#2c333b]'}`}><List size={16} /> Ver en Lista</button>
+            <button onClick={() => { setActiveView('miembros'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg font-medium transition-colors ${activeView === 'miembros' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-gray-400 hover:text-white hover:bg-[#2c333b]'}`}><Users size={16} /> Equipo</button>
           </nav>
           <div className="p-4 border-t border-[#30363d]"><Link href="/workspace" className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"><Target size={16} /> Volver al directorio</Link></div>
         </aside>
 
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
           <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-emerald-500/5 blur-[150px] rounded-full pointer-events-none z-0"></div>
-          <header className="h-16 px-6 border-b border-[#30363d] flex items-center justify-between shrink-0 relative z-50 bg-[#1d2125]/80 backdrop-blur-sm">
-            <div className="flex items-center gap-4 flex-1">
+          
+          {/* 🔥 CABECERA RESPONSIVA (Hamburguesa) 🔥 */}
+          <header className="h-16 px-4 md:px-6 border-b border-[#30363d] flex items-center justify-between shrink-0 relative z-30 bg-[#1d2125]/80 backdrop-blur-sm">
+            <div className="flex items-center gap-3 flex-1">
+              <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-1.5 text-gray-400 hover:text-white bg-[#161a1d] border border-[#30363d] rounded-lg">
+                <Menu size={20} />
+              </button>
               <div className="relative w-full max-w-md hidden md:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
                 <input type="text" placeholder="Buscar..." className="w-full bg-[#161a1d] border border-[#30363d] text-sm text-white rounded-md pl-10 pr-4 py-1.5 focus:outline-none focus:border-emerald-500 transition-all"/>
@@ -452,23 +475,23 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
           {/* --- MAPA DE ÉPICAS --- */}
           {activeView === 'epicas' && (
-            <div className="flex-1 overflow-y-auto p-6 md:p-10 relative z-10 custom-scrollbar bg-[#1d2125] animate-in fade-in duration-300">
+            <div className="flex-1 overflow-y-auto p-4 md:p-10 relative z-10 custom-scrollbar bg-[#1d2125] animate-in fade-in duration-300">
               <div className="max-w-5xl mx-auto">
-                <div className="flex justify-between items-end mb-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
                   <div>
-                    <h2 className="text-3xl font-bold text-white flex items-center gap-3"><Layers className="text-purple-500" size={32} /> Mapa de Épicas</h2>
-                    <p className="text-gray-400 mt-2">Visualiza el progreso de las grandes iniciativas de tu proyecto.</p>
+                    <h2 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3"><Layers className="text-purple-500" size={28} /> Mapa de Épicas</h2>
+                    <p className="text-gray-400 mt-2 text-sm md:text-base">Visualiza el progreso de las grandes iniciativas de tu proyecto.</p>
                   </div>
                   {canEdit && (
-                    <button onClick={handleCreateEpic} className="bg-purple-600 hover:bg-purple-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba(168,85,247,0.3)] flex items-center gap-2"><Plus size={18} /> Nueva Épica</button>
+                    <button onClick={handleCreateEpic} className="w-full md:w-auto bg-purple-600 hover:bg-purple-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba(168,85,247,0.3)] flex items-center justify-center gap-2"><Plus size={18} /> Nueva Épica</button>
                   )}
                 </div>
 
                 {epics.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center text-center p-16 bg-[#161a1d] border border-dashed border-[#30363d] rounded-2xl">
-                    <div className="w-20 h-20 bg-purple-500/10 rounded-full flex items-center justify-center mb-4"><Layers size={32} className="text-purple-500" /></div>
-                    <h3 className="text-xl font-bold text-white mb-2">No tienes Épicas activas</h3>
-                    <p className="text-gray-400 max-w-sm mb-6">Las Épicas te ayudan a agrupar tareas bajo un mismo objetivo gigante (Ej: "Sistema de Pagos").</p>
+                  <div className="flex flex-col items-center justify-center text-center p-8 md:p-16 bg-[#161a1d] border border-dashed border-[#30363d] rounded-2xl">
+                    <div className="w-16 h-16 md:w-20 md:h-20 bg-purple-500/10 rounded-full flex items-center justify-center mb-4"><Layers size={28} className="text-purple-500" /></div>
+                    <h3 className="text-lg md:text-xl font-bold text-white mb-2">No tienes Épicas activas</h3>
+                    <p className="text-gray-400 max-w-sm mb-6 text-sm md:text-base">Las Épicas te ayudan a agrupar tareas bajo un mismo objetivo gigante (Ej: "Sistema de Pagos").</p>
                     {canEdit && <button onClick={handleCreateEpic} className="text-purple-400 hover:text-purple-300 font-bold border-b border-purple-500 pb-1">Crear mi primera Épica</button>}
                   </div>
                 ) : (
@@ -481,22 +504,22 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                       const progress = epicTasks.length > 0 ? Math.round((completedEpicTasks.length / epicTasks.length) * 100) : 0;
 
                       return (
-                        <div key={epic.id} className="bg-[#161a1d] border border-[#30363d] hover:border-purple-500/50 rounded-2xl p-6 transition-all group relative overflow-hidden shadow-lg hover:shadow-[0_0_20px_rgba(168,85,247,0.1)]">
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-[40px] rounded-full pointer-events-none group-hover:bg-purple-500/20 transition-all"></div>
+                        <div key={epic.id} className="bg-[#161a1d] border border-[#30363d] hover:border-purple-500/50 rounded-2xl p-5 md:p-6 transition-all group relative overflow-hidden shadow-lg hover:shadow-[0_0_20px_rgba(168,85,247,0.1)]">
+                          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-purple-500/10 blur-[40px] rounded-full pointer-events-none group-hover:bg-purple-500/20 transition-all"></div>
                           <div className="flex justify-between items-start mb-6 relative z-10">
                             <div>
                               <div className="flex items-center gap-2 mb-1"><span className="bg-purple-500/20 text-purple-400 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-widest border border-purple-500/30">Épica</span></div>
-                              <h3 className="text-xl font-bold text-white group-hover:text-purple-300 transition-colors">{epic.name}</h3>
+                              <h3 className="text-lg md:text-xl font-bold text-white group-hover:text-purple-300 transition-colors line-clamp-2">{epic.name}</h3>
                             </div>
-                            {isAdmin && <button onClick={() => handleDeleteEpic(epic.id)} className="text-gray-500 hover:text-red-400 p-1 rounded-md hover:bg-red-500/10 transition-colors"><Trash2 size={16} /></button>}
+                            {isAdmin && <button onClick={() => handleDeleteEpic(epic.id)} className="text-gray-500 hover:text-red-400 p-1 rounded-md hover:bg-red-500/10 transition-colors shrink-0"><Trash2 size={16} /></button>}
                           </div>
                           <div className="space-y-4 relative z-10">
                             <div>
-                              <div className="flex justify-between text-sm mb-1.5"><span className="text-gray-400">Tickets finalizados</span><span className="text-white font-bold">{completedEpicTasks.length} / {epicTasks.length}</span></div>
+                              <div className="flex justify-between text-xs md:text-sm mb-1.5"><span className="text-gray-400">Tickets finalizados</span><span className="text-white font-bold">{completedEpicTasks.length} / {epicTasks.length}</span></div>
                               <div className="w-full bg-[#22272b] rounded-full h-2 overflow-hidden border border-[#30363d]"><div className="bg-gradient-to-r from-purple-600 to-fuchsia-400 h-2 rounded-full transition-all duration-1000 relative" style={{ width: `${progress}%` }}><div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div></div></div>
                             </div>
                             <div className="flex items-center justify-between pt-4 border-t border-[#30363d]">
-                              <div className="flex items-center gap-2 text-sm text-gray-400"><Clock size={16} className="text-purple-400/70" /><span>Esfuerzo Quemado</span></div>
+                              <div className="flex items-center gap-2 text-xs md:text-sm text-gray-400"><Clock size={14} className="text-purple-400/70" /><span>Esfuerzo Quemado</span></div>
                               <div className="text-right"><span className="text-white font-bold">{burnedEpicEffort}h</span><span className="text-gray-500 text-xs ml-1">/ {totalEpicEffort}h</span></div>
                             </div>
                           </div>
@@ -511,41 +534,42 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
           {/* --- VISTA DE RESUMEN --- */}
           {activeView === 'resumen' && (
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 relative z-10 custom-scrollbar animate-in fade-in duration-300">
-              <div className="max-w-5xl mx-auto space-y-8">
+            <div className="flex-1 overflow-y-auto p-4 md:p-8 relative z-10 custom-scrollbar animate-in fade-in duration-300">
+              <div className="max-w-5xl mx-auto space-y-6 md:space-y-8">
                 <div>
-                  <h1 className="text-3xl font-bold text-white tracking-tight mb-4">Resumen Ágil del Sprint</h1>
+                  <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-4">Resumen Ágil del Sprint</h1>
                   <div className="flex items-center mb-6 border-b border-[#30363d] pb-4"><SprintSelector viewedSprint={viewedSprint} sprints={sprints} setSelectedSprintId={setSelectedSprintId} /></div>
-                  {!viewedSprint ? (<p className="text-gray-400 text-yellow-500 font-medium">⚠️ No hay ningún Sprint para analizar en este momento.</p>) : (
+                  {!viewedSprint ? (<p className="text-gray-400 text-yellow-500 font-medium text-sm md:text-base">⚠️ No hay ningún Sprint para analizar en este momento.</p>) : (
                     <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="bg-[#161a1d] p-5 rounded-2xl border border-[#30363d] shadow-lg relative overflow-hidden">
-                          <div className="flex justify-between items-start mb-2"><div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400"><Clock size={20} /></div><span className="text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-md">{totalEffortHours}h Total</span></div>
-                          <p className="text-sm text-gray-400 font-medium">Esfuerzo Quemado</p><p className="text-2xl font-bold text-white">{completedEffortHours} <span className="text-sm text-gray-500 font-medium">hrs</span></p>
+                      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                        <div className="bg-[#161a1d] p-4 md:p-5 rounded-2xl border border-[#30363d] shadow-lg relative overflow-hidden">
+                          <div className="flex justify-between items-start mb-2"><div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400"><Clock size={18} /></div><span className="text-[10px] md:text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-md">{totalEffortHours}h Total</span></div>
+                          <p className="text-xs md:text-sm text-gray-400 font-medium">Esfuerzo Quemado</p><p className="text-xl md:text-2xl font-bold text-white">{completedEffortHours} <span className="text-xs md:text-sm text-gray-500 font-medium">hrs</span></p>
                         </div>
-                        <div className="bg-[#161a1d] p-5 rounded-2xl border border-[#30363d] shadow-lg relative overflow-hidden">
-                          <div className="flex justify-between items-start mb-2"><div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400"><CheckCircle size={20} /></div><span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md">{totalSprintTasksCount} Sprint</span></div>
-                          <p className="text-sm text-gray-400 font-medium">Tickets Listos</p><p className="text-2xl font-bold text-white">{doneTasksCount}</p>
+                        <div className="bg-[#161a1d] p-4 md:p-5 rounded-2xl border border-[#30363d] shadow-lg relative overflow-hidden">
+                          <div className="flex justify-between items-start mb-2"><div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400"><CheckCircle size={18} /></div><span className="text-[10px] md:text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md">{totalSprintTasksCount} Sprint</span></div>
+                          <p className="text-xs md:text-sm text-gray-400 font-medium">Tickets Listos</p><p className="text-xl md:text-2xl font-bold text-white">{doneTasksCount}</p>
                         </div>
-                        <div className={`p-5 rounded-2xl border shadow-lg relative overflow-hidden ${blockedTasksCount > 0 ? 'bg-red-950/20 border-red-900/50' : 'bg-[#161a1d] border-[#30363d]'}`}>
-                          <div className="flex justify-between items-start mb-2"><div className={`w-10 h-10 rounded-xl flex items-center justify-center ${blockedTasksCount > 0 ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/10 text-yellow-400'}`}>{blockedTasksCount > 0 ? <AlertCircle size={20} /> : <AlertTriangle size={20} />}</div><span className={`text-xs font-bold px-2 py-1 rounded-md ${highPriorityCount > 0 ? 'text-red-400 bg-red-500/10' : 'text-gray-400 bg-[#2c333b]'}`}>{highPriorityCount} P0/P1</span></div>
-                          <p className="text-sm text-gray-400 font-medium">Bloqueados</p><p className={`text-2xl font-bold ${blockedTasksCount > 0 ? 'text-red-400' : 'text-white'}`}>{blockedTasksCount}</p>
+                        <div className={`p-4 md:p-5 rounded-2xl border shadow-lg relative overflow-hidden ${blockedTasksCount > 0 ? 'bg-red-950/20 border-red-900/50' : 'bg-[#161a1d] border-[#30363d]'}`}>
+                          <div className="flex justify-between items-start mb-2"><div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center ${blockedTasksCount > 0 ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/10 text-yellow-400'}`}>{blockedTasksCount > 0 ? <AlertCircle size={18} /> : <AlertTriangle size={18} />}</div><span className={`text-[10px] md:text-xs font-bold px-2 py-1 rounded-md ${highPriorityCount > 0 ? 'text-red-400 bg-red-500/10' : 'text-gray-400 bg-[#2c333b]'}`}>{highPriorityCount} P0/P1</span></div>
+                          <p className="text-xs md:text-sm text-gray-400 font-medium">Bloqueados</p><p className={`text-xl md:text-2xl font-bold ${blockedTasksCount > 0 ? 'text-red-400' : 'text-white'}`}>{blockedTasksCount}</p>
                         </div>
-                        <div className="bg-[#161a1d] p-5 rounded-2xl border border-[#30363d] shadow-lg relative overflow-hidden">
-                          <div className="flex justify-between items-start mb-2"><div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400"><Users size={20} /></div><span className="text-xs font-bold text-purple-400 bg-purple-500/10 px-2 py-1 rounded-md">Total</span></div>
-                          <p className="text-sm text-gray-400 font-medium">Miembros</p><p className="text-2xl font-bold text-white">{space.members.length}</p>
+                        <div className="bg-[#161a1d] p-4 md:p-5 rounded-2xl border border-[#30363d] shadow-lg relative overflow-hidden">
+                          <div className="flex justify-between items-start mb-2"><div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400"><Users size={18} /></div><span className="text-[10px] md:text-xs font-bold text-purple-400 bg-purple-500/10 px-2 py-1 rounded-md">Total</span></div>
+                          <p className="text-xs md:text-sm text-gray-400 font-medium">Miembros</p><p className="text-xl md:text-2xl font-bold text-white">{space.members.length}</p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-                        <div className="bg-[#161a1d] p-6 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
-                          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2"><Target className="text-emerald-400" size={20}/> Velocidad del Sprint</h3>
-                          <div className="flex items-end justify-between mb-2"><span className="text-4xl font-extrabold text-white">{progressPercentage}%</span><span className="text-sm text-gray-400 font-medium">{pendingEffortHours} horas pendientes</span></div>
-                          <div className="w-full h-4 bg-[#22272b] rounded-full overflow-hidden border border-[#30363d]"><div className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-1000 ease-out relative" style={{ width: `${progressPercentage}%` }}>{isViewedSprintActive && <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>}</div></div>
-                          <div className="mt-8 space-y-3"><p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Distribución por Estado</p>{sortedColumns.map((col: any) => { const countInSprint = viewedSprintTasks.filter((t:any) => t.columnId === col.id).length; return (<div key={col.id} className="flex items-center justify-between"><div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${col.id === doneColumn?.id ? 'bg-emerald-500' : 'bg-gray-500'}`}></div><span className="text-sm text-gray-300 font-medium">{col.title}</span></div><span className="text-sm font-bold text-white bg-[#22272b] px-2 py-0.5 rounded border border-[#30363d]">{countInSprint} tickets</span></div>)})}</div>
+                      
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mt-6 md:mt-8">
+                        <div className="bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
+                          <h3 className="text-base md:text-lg font-bold text-white mb-4 md:mb-6 flex items-center gap-2"><Target className="text-emerald-400" size={18}/> Velocidad del Sprint</h3>
+                          <div className="flex items-end justify-between mb-2"><span className="text-3xl md:text-4xl font-extrabold text-white">{progressPercentage}%</span><span className="text-xs md:text-sm text-gray-400 font-medium">{pendingEffortHours} horas pendientes</span></div>
+                          <div className="w-full h-3 md:h-4 bg-[#22272b] rounded-full overflow-hidden border border-[#30363d]"><div className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-1000 ease-out relative" style={{ width: `${progressPercentage}%` }}>{isViewedSprintActive && <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>}</div></div>
+                          <div className="mt-6 md:mt-8 space-y-3"><p className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Distribución por Estado</p>{sortedColumns.map((col: any) => { const countInSprint = viewedSprintTasks.filter((t:any) => t.columnId === col.id).length; return (<div key={col.id} className="flex items-center justify-between"><div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${col.id === doneColumn?.id ? 'bg-emerald-500' : 'bg-gray-500'}`}></div><span className="text-xs md:text-sm text-gray-300 font-medium">{col.title}</span></div><span className="text-xs md:text-sm font-bold text-white bg-[#22272b] px-2 py-0.5 rounded border border-[#30363d]">{countInSprint} tickets</span></div>)})}</div>
                         </div>
-                        <div className="bg-[#161a1d] p-6 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
-                          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2"><Clock className="text-cyan-400" size={20}/> Carga Activa</h3>
-                          <div className="space-y-5">
+                        <div className="bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
+                          <h3 className="text-base md:text-lg font-bold text-white mb-4 md:mb-6 flex items-center gap-2"><Clock className="text-cyan-400" size={18}/> Carga Activa</h3>
+                          <div className="space-y-4 md:space-y-5">
                             {space.members.map((m: any) => {
                               const userHours = memberEffort[m.userId] || 0;
                               const activeEffort = totalEffortHours - completedEffortHours;
@@ -553,9 +577,9 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                               return (
                                 <div key={m.userId} className="group">
                                   <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-emerald-900 border border-[#30363d] flex items-center justify-center text-xs font-bold text-white overflow-hidden shrink-0">{m.user.image ? <img src={m.user.image} referrerPolicy="no-referrer" className="w-full h-full object-cover" alt="avatar"/> : m.user.name.charAt(0)}</div><span className="text-sm text-gray-300 font-medium group-hover:text-white transition-colors">{m.user.name}</span></div><span className="text-sm font-bold text-emerald-400">{userHours}h</span>
+                                    <div className="flex items-center gap-2 md:gap-3"><div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-emerald-900 border border-[#30363d] flex items-center justify-center text-[10px] md:text-xs font-bold text-white overflow-hidden shrink-0">{m.user.image ? <img src={m.user.image} referrerPolicy="no-referrer" className="w-full h-full object-cover" alt="avatar"/> : m.user.name.charAt(0)}</div><span className="text-xs md:text-sm text-gray-300 font-medium group-hover:text-white transition-colors truncate max-w-[100px] md:max-w-none">{m.user.name}</span></div><span className="text-xs md:text-sm font-bold text-emerald-400">{userHours}h</span>
                                   </div>
-                                  <div className="w-full h-1.5 bg-[#22272b] rounded-full overflow-hidden"><div className="h-full bg-cyan-500/80 rounded-full transition-all duration-1000" style={{ width: `${userPercentage}%` }}></div></div>
+                                  <div className="w-full h-1 md:h-1.5 bg-[#22272b] rounded-full overflow-hidden"><div className="h-full bg-cyan-500/80 rounded-full transition-all duration-1000" style={{ width: `${userPercentage}%` }}></div></div>
                                 </div>
                               );
                             })}
@@ -571,20 +595,22 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
           {/* --- VISTA BACKLOG --- */}
           {activeView === 'backlog' && (
-            <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar relative z-10 bg-[#1d2125]">
+            <div className="flex-1 overflow-y-auto p-4 md:p-10 custom-scrollbar relative z-10 bg-[#1d2125]">
               <div className="max-w-5xl mx-auto">
-                <div className="flex justify-between items-end mb-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6 md:mb-8">
                   <div>
-                    <h2 className="text-3xl font-bold text-white">Backlog de Tareas</h2>
-                    <p className="text-gray-400 mt-1">Planea tus Sprints arrastrando tareas hacia ellos.</p>
+                    <h2 className="text-2xl md:text-3xl font-bold text-white">Backlog de Tareas</h2>
+                    <p className="text-gray-400 mt-1 text-sm md:text-base">Planea tus Sprints arrastrando tareas hacia ellos.</p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
+                     {canEdit && <button onClick={() => setActiveView('epicas')} className="flex-1 md:flex-none justify-center bg-purple-900/30 hover:bg-purple-800/40 border border-purple-500/50 text-purple-300 px-3 py-2 rounded-lg text-xs md:text-sm font-bold transition-all shadow-[0_0_10px_rgba(168,85,247,0.2)]">Gestionar Épicas</button>}
+
                      {isAdmin && sprints.some((s:any) => s.status === 'COMPLETED') && (
-                        <button onClick={() => setShowCompletedSprints(!showCompletedSprints)} className="bg-[#161a1d] hover:bg-[#2c333b] border border-[#30363d] text-gray-400 px-4 py-2 rounded-lg text-sm font-bold transition-all">
+                        <button onClick={() => setShowCompletedSprints(!showCompletedSprints)} className="flex-1 md:flex-none justify-center bg-[#161a1d] hover:bg-[#2c333b] border border-[#30363d] text-gray-400 px-3 py-2 rounded-lg text-xs md:text-sm font-bold transition-all">
                           {showCompletedSprints ? 'Ocultar Finalizados' : 'Ver Finalizados'}
                         </button>
                      )}
-                     {canEdit && <button onClick={handleCreateSprint} className="bg-[#2c333b] hover:bg-[#3d444d] border border-[#30363d] text-white px-4 py-2 rounded-lg text-sm font-bold transition-all">Crear Sprint</button>}
+                     {canEdit && <button onClick={handleCreateSprint} className="flex-1 md:flex-none justify-center bg-[#2c333b] hover:bg-[#3d444d] border border-[#30363d] text-white px-3 py-2 rounded-lg text-xs md:text-sm font-bold transition-all">Crear Sprint</button>}
                   </div>
                 </div>
 
@@ -592,26 +618,26 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   {sprints.filter((s:any) => showCompletedSprints ? true : s.status !== 'COMPLETED').map((sprint: any) => {
                     const tasksInSprint = allTasks.filter((t: any) => t.sprintId === sprint.id);
                     return (
-                      <div key={sprint.id} className={`mb-8 bg-[#161a1d] border rounded-xl overflow-hidden ${sprint.status === 'ACTIVE' ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-[#30363d]'} ${sprint.status === 'COMPLETED' ? 'opacity-60 grayscale' : ''}`}>
-                        <div className="bg-[#1d2125] p-4 flex justify-between items-center border-b border-[#30363d]">
-                          <div className="flex items-center gap-3">
-                            <h3 className="text-lg font-bold text-white">{sprint.name}</h3>
-                            {sprint.status === 'ACTIVE' && <span className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-1 rounded font-bold uppercase">Activo</span>}
-                            {sprint.status === 'COMPLETED' && <span className="bg-blue-500/20 text-blue-400 text-[10px] px-2 py-1 rounded font-bold uppercase">Finalizado</span>}
-                            <span className="text-xs text-gray-500 font-medium">{tasksInSprint.length} tickets</span>
+                      <div key={sprint.id} className={`mb-6 md:mb-8 bg-[#161a1d] border rounded-xl overflow-hidden ${sprint.status === 'ACTIVE' ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-[#30363d]'} ${sprint.status === 'COMPLETED' ? 'opacity-60 grayscale' : ''}`}>
+                        <div className="bg-[#1d2125] p-3 md:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-[#30363d]">
+                          <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full sm:w-auto">
+                            <h3 className="text-base md:text-lg font-bold text-white">{sprint.name}</h3>
+                            {sprint.status === 'ACTIVE' && <span className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 md:py-1 rounded font-bold uppercase">Activo</span>}
+                            {sprint.status === 'COMPLETED' && <span className="bg-blue-500/20 text-blue-400 text-[10px] px-2 py-0.5 md:py-1 rounded font-bold uppercase">Finalizado</span>}
+                            <span className="text-[10px] md:text-xs text-gray-500 font-medium ml-auto sm:ml-0">{tasksInSprint.length} tickets</span>
                           </div>
                           
-                          <div className="flex items-center gap-2">
-                            {isAdmin && sprint.status === 'PLANNED' && <button onClick={() => handleDeleteSprint(sprint.id)} title="Eliminar Sprint" className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"><Trash2 size={14}/></button>}
-                            {canEdit && sprint.status === 'PLANNED' && <button onClick={() => handleStartSprint(sprint.id)} disabled={tasksInSprint.length === 0} className="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-neutral-950 px-4 py-1.5 rounded-md text-sm font-bold flex items-center gap-1.5"><Play size={14}/> Iniciar Sprint</button>}
-                            {isAdmin && sprint.status === 'ACTIVE' && <button onClick={() => handleCompleteSprint(sprint.id)} className="bg-blue-500 hover:bg-blue-400 text-white px-4 py-1.5 rounded-md text-sm font-bold flex items-center gap-1.5"><Check size={14}/> Completar Sprint</button>}
+                          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                            {isAdmin && sprint.status === 'PLANNED' && <button onClick={() => handleDeleteSprint(sprint.id)} title="Eliminar Sprint" className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"><Trash2 size={16}/></button>}
+                            {canEdit && sprint.status === 'PLANNED' && <button onClick={() => handleStartSprint(sprint.id)} disabled={tasksInSprint.length === 0} className="w-full sm:w-auto justify-center bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-neutral-950 px-3 md:px-4 py-1.5 rounded-md text-xs md:text-sm font-bold flex items-center gap-1.5"><Play size={14}/> Iniciar Sprint</button>}
+                            {isAdmin && sprint.status === 'ACTIVE' && <button onClick={() => handleCompleteSprint(sprint.id)} className="w-full sm:w-auto justify-center bg-blue-500 hover:bg-blue-400 text-white px-3 md:px-4 py-1.5 rounded-md text-xs md:text-sm font-bold flex items-center gap-1.5"><Check size={14}/> Completar Sprint</button>}
                           </div>
                         </div>
                         
                         <Droppable droppableId={`sprint-${sprint.id}`} isDropDisabled={sprint.status === 'COMPLETED'}>
                           {(provided, snapshot) => (
-                            <div ref={provided.innerRef} {...provided.droppableProps} className={`p-4 min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-[#22272b]/50' : ''}`}>
-                              {tasksInSprint.length === 0 && <p className="text-sm text-gray-500 text-center py-4 border-2 border-dashed border-[#30363d] rounded-lg">Arrastra tareas aquí para planear el sprint</p>}
+                            <div ref={provided.innerRef} {...provided.droppableProps} className={`p-3 md:p-4 min-h-[80px] md:min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-[#22272b]/50' : ''}`}>
+                              {tasksInSprint.length === 0 && <p className="text-xs md:text-sm text-gray-500 text-center py-4 border-2 border-dashed border-[#30363d] rounded-lg mx-1">Arrastra tareas aquí para planear el sprint</p>}
                               {tasksInSprint.map((task: any, index: number) => <BacklogRow key={task.id} task={task} index={index} />)}
                               {provided.placeholder}
                             </div>
@@ -622,22 +648,22 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   })}
 
                   <div className="mb-8">
-                    <div className="flex justify-between items-center mb-4 px-2">
-                      <h3 className="text-lg font-bold text-white flex items-center gap-2">Cajón de Backlog <span className="text-xs bg-[#2c333b] text-gray-400 px-2 py-0.5 rounded-md">{backlogTasks.length}</span></h3>
+                    <div className="flex justify-between items-center mb-3 md:mb-4 px-1 md:px-2">
+                      <h3 className="text-base md:text-lg font-bold text-white flex items-center gap-2">Cajón de Backlog <span className="text-[10px] md:text-xs bg-[#2c333b] text-gray-400 px-2 py-0.5 rounded-md">{backlogTasks.length}</span></h3>
                     </div>
                     <Droppable droppableId="backlog">
                       {(provided, snapshot) => (
-                        <div ref={provided.innerRef} {...provided.droppableProps} className={`bg-[#161a1d] border border-[#30363d] rounded-xl p-4 min-h-[150px] transition-colors ${snapshot.isDraggingOver ? 'bg-[#22272b]/50' : ''}`}>
-                          {backlogTasks.length === 0 && <p className="text-sm text-gray-500 text-center py-8">Tu backlog está vacío.</p>}
+                        <div ref={provided.innerRef} {...provided.droppableProps} className={`bg-[#161a1d] border border-[#30363d] rounded-xl p-3 md:p-4 min-h-[120px] md:min-h-[150px] transition-colors ${snapshot.isDraggingOver ? 'bg-[#22272b]/50' : ''}`}>
+                          {backlogTasks.length === 0 && <p className="text-xs md:text-sm text-gray-500 text-center py-6 md:py-8">Tu backlog está vacío.</p>}
                           {backlogTasks.map((task: any, index: number) => <BacklogRow key={task.id} task={task} index={index} />)}
                           {provided.placeholder}
                           
                           {canEdit && (
                              <div className="mt-2">
                                {addingTaskToCol === 'backlog-create' ? (
-                                 <input autoFocus type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleCreateTask(''); if(e.key === 'Escape') setAddingTaskToCol(null); }} onBlur={() => setAddingTaskToCol(null)} placeholder="Escribe y presiona Enter..." className="w-full bg-[#22272b] border border-emerald-500 text-sm text-white rounded-lg px-4 py-2 outline-none"/>
+                                 <input autoFocus type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleCreateTask(''); if(e.key === 'Escape') setAddingTaskToCol(null); }} onBlur={() => setAddingTaskToCol(null)} placeholder="Escribe y presiona Enter..." className="w-full bg-[#22272b] border border-emerald-500 text-xs md:text-sm text-white rounded-lg px-3 md:px-4 py-2 outline-none"/>
                                ) : (
-                                 <button onClick={() => setAddingTaskToCol('backlog-create')} className="w-full text-left text-sm text-gray-400 hover:text-white bg-[#22272b] hover:bg-[#2c333b] border border-dashed border-[#30363d] rounded-lg px-4 py-2 transition-colors flex items-center gap-2"><Plus size={16}/> Crear idea en Backlog</button>
+                                 <button onClick={() => setAddingTaskToCol('backlog-create')} className="w-full text-left text-xs md:text-sm text-gray-400 hover:text-white bg-[#22272b] hover:bg-[#2c333b] border border-dashed border-[#30363d] rounded-lg px-3 md:px-4 py-2 transition-colors flex items-center gap-2"><Plus size={14} className="md:w-4 md:h-4"/> Crear idea en Backlog</button>
                                )}
                              </div>
                           )}
@@ -654,24 +680,26 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
           {activeView === 'tablero' && (
             <div className="flex-1 flex flex-col overflow-hidden relative z-10 bg-[#1d2125]">
               {sprints.filter((s:any) => s.status !== 'PLANNED').length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                  <div className="w-24 h-24 bg-[#161a1d] rounded-full flex items-center justify-center mb-6 border border-[#30363d]"><ArchiveRestore size={40} className="text-gray-500" /></div>
-                  <h2 className="text-2xl font-bold text-white mb-2">No hay ningún Sprint iniciado</h2>
-                  <p className="text-gray-400 max-w-md mb-6">Ve al Backlog, planea tus tareas y presiona "Iniciar Sprint" para que aparezcan en este tablero.</p>
-                  <button onClick={() => setActiveView('backlog')} className="bg-emerald-500 text-neutral-950 px-6 py-2.5 rounded-lg font-bold hover:bg-emerald-400 transition-colors">Ir al Backlog</button>
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 md:p-8">
+                  <div className="w-20 h-20 md:w-24 md:h-24 bg-[#161a1d] rounded-full flex items-center justify-center mb-4 md:mb-6 border border-[#30363d]"><ArchiveRestore size={32} className="text-gray-500 md:w-10 md:h-10" /></div>
+                  <h2 className="text-xl md:text-2xl font-bold text-white mb-2">No hay ningún Sprint iniciado</h2>
+                  <p className="text-gray-400 max-w-sm md:max-w-md mb-6 text-sm md:text-base">Ve al Backlog, planea tus tareas y presiona "Iniciar Sprint" para que aparezcan en este tablero.</p>
+                  <button onClick={() => setActiveView('backlog')} className="bg-emerald-500 text-neutral-950 px-5 md:px-6 py-2 md:py-2.5 rounded-lg text-sm md:text-base font-bold hover:bg-emerald-400 transition-colors">Ir al Backlog</button>
                 </div>
               ) : (
                 <DragDropContext onDragEnd={onDragEndBoard}>
-                  <div className="px-6 py-4 shrink-0 bg-[#1d2125] border-b border-[#30363d]">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="flex items-center gap-4">
+                  <div className="px-4 md:px-6 py-3 md:py-4 shrink-0 bg-[#1d2125] border-b border-[#30363d] overflow-x-auto custom-scrollbar">
+                    <div className="flex items-center justify-between gap-4 min-w-[300px]">
+                      
+                      <div className="flex items-center gap-3 md:gap-4">
                         <SprintSelector viewedSprint={viewedSprint} sprints={sprints} setSelectedSprintId={setSelectedSprintId} />
-                        {!isViewedSprintActive && <span className="bg-blue-500/20 text-blue-400 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-widest border border-blue-500/30">Solo Lectura</span>}
+                        {!isViewedSprintActive && <span className="bg-blue-500/20 text-blue-400 text-[10px] md:text-xs px-2 md:px-3 py-1 rounded-full font-bold uppercase tracking-widest border border-blue-500/30">Solo Lectura</span>}
                       </div>
+
                       <div className="flex items-center gap-3">
                         <div className="flex -space-x-2 mr-2">
                           {space.members.slice(0, 4).map((m: any, i: number) => (
-                            <div key={i} className="w-8 h-8 rounded-full border-2 border-[#1d2125] bg-emerald-900 flex items-center justify-center text-xs font-bold text-white overflow-hidden" title={m.user.name}>
+                            <div key={i} className="w-7 h-7 md:w-8 md:h-8 rounded-full border-2 border-[#1d2125] bg-emerald-900 flex items-center justify-center text-[10px] md:text-xs font-bold text-white overflow-hidden shrink-0" title={m.user.name}>
                               {m.user.image ? <img src={m.user.image} referrerPolicy="no-referrer" className="w-full h-full object-cover" alt="avatar"/> : m.user.name.charAt(0)}
                             </div>
                           ))}
@@ -680,13 +708,13 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 pb-4 bg-[#1d2125]">
+                  <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 md:px-6 pb-4 bg-[#1d2125] custom-scrollbar">
                     <div className="flex gap-4 h-full items-start mt-4">
                       {normalColumns.map((col: any) => {
                         const colTasks = viewedSprintTasks.filter((t: any) => t.columnId === col.id).sort((a:any, b:any) => a.order - b.order);
                         return (
-                        <div key={col.id} className="w-[300px] shrink-0 bg-[#161a1d] rounded-xl flex flex-col max-h-full border border-[#30363d]">
-                          <div className="p-3 flex justify-between items-center group"><h3 className="text-xs font-bold text-gray-400 uppercase">{col.title} <span className="ml-2 bg-[#2c333b] px-1.5 py-0.5 rounded-md text-gray-300">{colTasks.length}</span></h3></div>
+                        <div key={col.id} className="w-[280px] md:w-[300px] shrink-0 bg-[#161a1d] rounded-xl flex flex-col max-h-full border border-[#30363d]">
+                          <div className="p-3 flex justify-between items-center group"><h3 className="text-[11px] md:text-xs font-bold text-gray-400 uppercase">{col.title} <span className="ml-2 bg-[#2c333b] px-1.5 py-0.5 rounded-md text-gray-300">{colTasks.length}</span></h3></div>
                           <Droppable droppableId={col.id} type="TASK">
                             {(provided, snapshot) => (
                               <div ref={provided.innerRef} {...provided.droppableProps} className={`p-2 flex-1 overflow-y-auto space-y-2 custom-scrollbar relative transition-colors ${snapshot.isDraggingOver && isViewedSprintActive ? 'bg-[#1a1e23]/80' : ''}`} style={{ minHeight: '100px' }}>
@@ -704,7 +732,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                           {canEdit && isViewedSprintActive && addingTaskToCol !== col.id && <div className="p-2 border-t border-[#30363d]/50"><button onClick={() => setAddingTaskToCol(col.id)} className="w-full flex items-center gap-2 text-sm text-gray-400 hover:text-white hover:bg-[#2c333b] p-2 rounded-lg transition-colors"><Plus size={16} /> Añadir tarjeta</button></div>}
                         </div>
                       )})}
-                      <div className="w-[300px] shrink-0">
+                      <div className="w-[280px] md:w-[300px] shrink-0 pr-4">
                         {isAddingColumn && canEdit && isViewedSprintActive ? (
                           <div className="bg-[#161a1d] border border-emerald-500 rounded-xl p-3 shadow-[0_0_15px_rgba(16,185,129,0.15)] animate-in fade-in zoom-in-95 duration-200">
                             <input autoFocus type="text" value={newColumnTitle} onChange={(e) => setNewColumnTitle(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleCreateColumn(); if (e.key === 'Escape') setIsAddingColumn(false); }} placeholder="Nombre de la columna..." className="w-full bg-transparent text-sm text-white outline-none mb-3 font-bold placeholder:font-normal" />
@@ -721,28 +749,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
             </div>
           )}
 
-          {/* --- VISTA DE MIEMBROS --- */}
-          {activeView === 'miembros' && (
-            <div className="flex-1 overflow-y-auto p-6 md:p-10 relative z-10 animate-in fade-in duration-300">
-              <div className="max-w-4xl mx-auto">
-                <h2 className="text-2xl font-bold text-white mb-2">Equipo del Proyecto</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {space.members.map((member: any) => (
-                    <div key={member.id} className="bg-[#161a1d] border border-[#30363d] rounded-xl p-5 flex items-center justify-between hover:border-emerald-500/50 transition-all group shadow-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-emerald-950 border border-[#30363d] flex items-center justify-center text-emerald-400 font-bold text-lg overflow-hidden shrink-0"><img src={member.user.image} referrerPolicy="no-referrer" className="w-full h-full object-cover" alt="avatar" /></div>
-                        <div>
-                          <h4 className="text-white font-bold text-sm md:text-base">{member.user.name}</h4>
-                          <span className={`text-xs px-2 py-0.5 rounded font-medium mt-1 inline-block ${member.role === 'Administrador' ? 'bg-red-950/50 text-red-400 border border-red-900/50' : member.role === 'Miembro' ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900/50' : 'bg-gray-800/50 text-gray-400 border border-gray-700/50'}`}>{member.role}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-          {/* --- NUEVA VISTA: LISTA DE TAREAS --- */}
+          {/* --- VISTA DE LISTA --- */}
           {activeView === 'lista' && (
             <TaskListView 
               tasks={allTasks} 
@@ -751,6 +758,29 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
               epics={epics} 
               onTaskClick={(task: any) => setEditingTask(task)} 
             />
+          )}
+
+          {/* --- VISTA DE MIEMBROS --- */}
+          {activeView === 'miembros' && (
+            <div className="flex-1 overflow-y-auto p-4 md:p-10 relative z-10 animate-in fade-in duration-300">
+              <div className="max-w-4xl mx-auto">
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Equipo del Proyecto</h2>
+                <p className="text-gray-400 mb-6 md:mb-8 text-sm md:text-base">Gestiona o visualiza a los miembros de este Taskyspace.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                  {space.members.map((member: any) => (
+                    <div key={member.id} className="bg-[#161a1d] border border-[#30363d] rounded-xl p-4 md:p-5 flex items-center justify-between hover:border-emerald-500/50 transition-all group shadow-lg">
+                      <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
+                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-emerald-950 border border-[#30363d] flex items-center justify-center text-emerald-400 font-bold text-lg overflow-hidden shrink-0"><img src={member.user.image} referrerPolicy="no-referrer" className="w-full h-full object-cover" alt="avatar" /></div>
+                        <div className="overflow-hidden">
+                          <h4 className="text-white font-bold text-sm md:text-base truncate">{member.user.name}</h4>
+                          <span className={`text-[10px] md:text-xs px-2 py-0.5 rounded font-medium mt-1 inline-block ${member.role === 'Administrador' ? 'bg-red-950/50 text-red-400 border border-red-900/50' : member.role === 'Miembro' ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900/50' : 'bg-gray-800/50 text-gray-400 border border-gray-700/50'}`}>{member.role}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
         </main>
 

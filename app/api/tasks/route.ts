@@ -4,19 +4,22 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../../../lib/auth";
 import { prisma } from "../../../lib/db";
 
-// CREAR TAREA
+// CREAR TAREA O SUB-TAREA
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) return new NextResponse("No autorizado", { status: 401 });
 
-    const { title, columnId, spaceId } = await request.json();
+    // 🔥 AÑADIDO: Ahora recibe 'type' desde el frontend
+    const { title, columnId, spaceId, parentId, type } = await request.json(); 
 
     const newTask = await prisma.task.create({
       data: {
         title,
         columnId,
         taskyspaceId: spaceId,
+        parentId: parentId || null, 
+        type: type || "Task", // 🔥 AÑADIDO: Guarda el tipo, si no hay, usa "Task"
         order: 0,
       },
       include: {
@@ -40,20 +43,10 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     
     const { 
-      taskId, 
-      assigneeId,
-      sprintId, 
-      epicId,
-      title,
-      description,
-      type,
-      priority,
-      effortHours,
-      dueDate,
-      acceptanceCriteria,
-      isBlocked,
-      notes,       // 🔥 AÑADIDO: Notas
-      closedAt     // 🔥 AÑADIDO: Fecha de Cierre Automática
+      taskId, assigneeId, sprintId, epicId, parentId, 
+      columnId, // Permite mover la sub-tarea de columna
+      title, description, type, priority, effortHours, 
+      dueDate, acceptanceCriteria, isBlocked, notes, closedAt 
     } = body;
 
     if (!taskId) return new NextResponse("Falta el ID", { status: 400 });
@@ -63,6 +56,8 @@ export async function PATCH(request: Request) {
     if (assigneeId !== undefined) updateData.assigneeId = assigneeId === "" ? null : assigneeId;
     if (sprintId !== undefined) updateData.sprintId = sprintId === "" ? null : sprintId; 
     if (epicId !== undefined) updateData.epicId = epicId === "" ? null : epicId; 
+    if (parentId !== undefined) updateData.parentId = parentId === "" ? null : parentId; 
+    if (columnId !== undefined) updateData.columnId = columnId; 
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (type !== undefined) updateData.type = type;
@@ -70,16 +65,10 @@ export async function PATCH(request: Request) {
     if (effortHours !== undefined) updateData.effortHours = Number(effortHours);
     if (acceptanceCriteria !== undefined) updateData.acceptanceCriteria = acceptanceCriteria;
     if (isBlocked !== undefined) updateData.isBlocked = isBlocked;
-    if (notes !== undefined) updateData.notes = notes; // 🔥 Guarda las notas
+    if (notes !== undefined) updateData.notes = notes; 
     
-    if (dueDate !== undefined) {
-      updateData.dueDate = dueDate ? new Date(dueDate) : null;
-    }
-    
-    // 🔥 Guarda o borra la fecha de cierre si se mueve al final
-    if (closedAt !== undefined) {
-      updateData.closedAt = closedAt ? new Date(closedAt) : null;
-    }
+    if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
+    if (closedAt !== undefined) updateData.closedAt = closedAt ? new Date(closedAt) : null;
 
     const updatedTask = await prisma.task.update({
       where: { id: taskId },

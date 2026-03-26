@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Layout, Users, Plus, Search, Target, Trash2, ExternalLink, User as UserIcon, X, ChevronDown, BarChart2, CheckCircle, Clock, ArchiveRestore, AlertCircle, AlertTriangle, ListTodo, Play, Check, Layers, List, Menu } from 'lucide-react';
+import { Layout, Users, Plus, Search, Target, Trash2, ExternalLink, User as UserIcon, X, ChevronDown, BarChart2, CheckCircle, Clock, ArchiveRestore, AlertCircle, AlertTriangle, ListTodo, Play, Check, Layers, List, Menu, GitCommit } from 'lucide-react';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
@@ -12,11 +12,9 @@ import TaskModal from '../../components/TaskModal';
 import TaskListView from '../../components/TaskListView';
 import EpicModal from '../../components/EpicModal'; 
 
-// --- COMPONENTE CUSTOM: SELECTOR DE SPRINTS ---
 const SprintSelector = ({ viewedSprint, sprints, setSelectedSprintId }: any) => {
   const [isOpen, setIsOpen] = useState(false);
   const availableSprints = sprints.filter((s:any) => s.status !== 'PLANNED');
-
   if (availableSprints.length === 0) return null;
 
   return (
@@ -34,11 +32,7 @@ const SprintSelector = ({ viewedSprint, sprints, setSelectedSprintId }: any) => 
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
           <div className="absolute top-full left-0 mt-2 w-64 bg-[#161a1d] border border-[#30363d] rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
             {availableSprints.map((sprint: any) => (
-              <button
-                key={sprint.id}
-                onClick={() => { setSelectedSprintId(sprint.id); setIsOpen(false); }}
-                className={`w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-[#22272b] transition-colors border-b border-[#30363d] last:border-0 ${viewedSprint?.id === sprint.id ? 'bg-emerald-500/10' : ''}`}
-              >
+              <button key={sprint.id} onClick={() => { setSelectedSprintId(sprint.id); setIsOpen(false); }} className={`w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-[#22272b] transition-colors border-b border-[#30363d] last:border-0 ${viewedSprint?.id === sprint.id ? 'bg-emerald-500/10' : ''}`}>
                 <span className={`font-bold truncate pr-2 ${viewedSprint?.id === sprint.id ? 'text-emerald-400' : 'text-gray-300'}`}>{sprint.name}</span>
                 <span className="text-[10px] uppercase text-gray-500 shrink-0">{sprint.status === 'COMPLETED' ? 'Terminado' : 'Activo'}</span>
               </button>
@@ -50,7 +44,6 @@ const SprintSelector = ({ viewedSprint, sprints, setSelectedSprintId }: any) => 
   );
 };
 
-// Utilidad de colores para tipos de tarea
 const getTypeColor = (type: string) => {
   switch(type) {
       case 'Bug': return 'bg-red-500/20 text-red-400';
@@ -58,6 +51,7 @@ const getTypeColor = (type: string) => {
       case 'Doc': return 'bg-blue-500/20 text-blue-400';
       case 'Artefacto': return 'bg-orange-500/20 text-orange-400';
       case 'Spike': return 'bg-pink-500/20 text-pink-400';
+      case 'Sub': return 'bg-cyan-500/20 text-cyan-400';
       default: return 'bg-gray-700/50 text-gray-400';
   }
 };
@@ -67,10 +61,7 @@ interface TaskyspaceClientProps { space: any; currentUser: any; userRole: string
 export default function TaskyspaceClient({ space, currentUser, userRole }: TaskyspaceClientProps) {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
-  
-  // ESTADO PARA EL MENÚ EN CELULAR
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
   const [activeView, setActiveView] = useState<'resumen' | 'backlog' | 'tablero' | 'miembros' | 'epicas' | 'lista'>('backlog');
   
   const [columns, setColumns] = useState(space.columns || []);
@@ -88,6 +79,8 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   
   const [editingTask, setEditingTask] = useState<any | null>(null);
   const [editingEpic, setEditingEpic] = useState<any | null>(null);
+  
+  const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
 
   const isAdmin = userRole === 'Administrador';
   const canEdit = userRole === 'Administrador' || userRole === 'Miembro';
@@ -107,9 +100,11 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   const isViewedSprintActive = viewedSprint?.status === 'ACTIVE';
 
   const allTasks = columns.flatMap((c: any) => c.tasks || []);
-  const backlogTasks = allTasks.filter((t: any) => !t.sprintId);
-  const viewedSprintTasks = viewedSprint ? allTasks.filter((t: any) => t.sprintId === viewedSprint.id) : [];
   
+  const topLevelTasks = allTasks.filter((t: any) => !t.parentId);
+  const backlogTasks = topLevelTasks.filter((t: any) => !t.sprintId);
+  const viewedSprintTasks = viewedSprint ? topLevelTasks.filter((t: any) => t.sprintId === viewedSprint.id) : [];
+
   const doneColumn = normalColumns.find((c: any) => ['LISTO', 'DONE', 'COMPLETADO', 'FINALIZADO', 'HECHO'].includes(c.title.toUpperCase().trim())) || (normalColumns.length > 0 ? normalColumns[normalColumns.length - 1] : null);
   
   const doneTasksList = viewedSprintTasks.filter((t: any) => t.columnId === doneColumn?.id);
@@ -131,6 +126,41 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
       memberEffort[task.assigneeId] = (memberEffort[task.assigneeId] || 0) + (Number(task.effortHours) || 0);
     }
   });
+
+  const toggleSubtasks = (taskId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
+
+  const handleToggleSubtaskStatus = async (subtaskId: string, isCurrentlyDone: boolean) => {
+    if (!canEdit || !doneColumn || normalColumns.length === 0) return;
+    
+    const targetColumnId = isCurrentlyDone ? normalColumns[0].id : doneColumn.id;
+    const closedAt = isCurrentlyDone ? null : new Date().toISOString();
+
+    setColumns((prev: any) => {
+      let updatedTask: any = null;
+      const newCols = prev.map((col: any) => {
+        const taskIndex = col.tasks.findIndex((t: any) => t.id === subtaskId);
+        if (taskIndex > -1) {
+          updatedTask = { ...col.tasks[taskIndex], columnId: targetColumnId, closedAt };
+          return { ...col, tasks: col.tasks.filter((t: any) => t.id !== subtaskId) }; 
+        }
+        return col;
+      });
+      if (updatedTask) {
+        return newCols.map((col: any) => col.id === targetColumnId ? { ...col, tasks: [...col.tasks, updatedTask] } : col);
+      }
+      return prev;
+    });
+
+    await fetch('/api/tasks', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskId: subtaskId, columnId: targetColumnId, closedAt })
+    });
+    router.refresh();
+  };
 
   const handleCreateSprint = async () => {
     if (!canEdit) return;
@@ -157,10 +187,8 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   const handleDeleteEpic = async (epicId: string) => {
     if (!isAdmin) return alert("Solo el Administrador puede borrar Épicas.");
     if (!confirm("⚠️ ¿Eliminar esta Épica? Las tareas asociadas perderán esta etiqueta, pero NO se borrarán.")) return;
-    
     setEpics(epics.filter((e:any) => e.id !== epicId));
     setColumns((prev: any) => prev.map((col: any) => ({ ...col, tasks: col.tasks.map((t: any) => t.epicId === epicId ? { ...t, epicId: null } : t) })));
-    
     await fetch(`/api/epics?epicId=${epicId}`, { method: 'DELETE' });
     router.refresh();
   };
@@ -179,7 +207,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const incompleteTasks = sprintTasks.filter((t: any) => t.columnId !== doneColumn?.id);
     if (incompleteTasks.length > 0) return alert(`❌ No puedes completar este Sprint. Aún hay ${incompleteTasks.length} tarea(s) fuera de la columna '${doneColumn?.title || 'Listo'}'.`);
     if (!confirm("¿Seguro que quieres dar por completado este sprint?")) return;
-    
     const res = await fetch('/api/sprints', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sprintId, status: 'COMPLETED' }) });
     if (res.ok) { setSprints(sprints.map((s: any) => s.id === sprintId ? { ...s, status: 'COMPLETED' } : s)); setSelectedSprintId(sprintId); setActiveView('tablero'); router.refresh(); }
   };
@@ -208,22 +235,38 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     movedTask.columnId = destination.droppableId;
 
     if (source.droppableId !== destination.droppableId) {
-      if (destination.droppableId === doneColumn?.id) { movedTask.closedAt = new Date().toISOString(); } 
-      else if (source.droppableId === doneColumn?.id) { movedTask.closedAt = null; }
+      if (destination.droppableId === doneColumn?.id) {
+        
+        const subtasks = allTasks.filter((t: any) => t.parentId === movedTask.id);
+        const hasIncomplete = subtasks.some((st: any) => {
+          const stCol = columns.find((c:any) => c.id === st.columnId);
+          return !(stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE');
+        });
+
+        if (hasIncomplete) {
+          alert("❌ Acción bloqueada: No puedes mover esta tarea a 'Listo' porque aún tiene sub-tareas pendientes por completar.");
+          return; 
+        }
+
+        movedTask.closedAt = new Date().toISOString(); 
+      } 
+      else if (source.droppableId === doneColumn?.id) { 
+        movedTask.closedAt = null; 
+      }
     }
 
     const destCol = newColumns.find((c: any) => c.id === destination.droppableId);
     const sourceCol = newColumns.find((c: any) => c.id === source.droppableId);
 
-    const destSprintTasks = destCol.tasks.filter((t: any) => t.sprintId === viewedSprint?.id).sort((a: any, b: any) => a.order - b.order);
-    const destOtherTasks = destCol.tasks.filter((t: any) => t.sprintId !== viewedSprint?.id); 
+    const destSprintTasks = destCol.tasks.filter((t: any) => t.sprintId === viewedSprint?.id && !t.parentId).sort((a: any, b: any) => a.order - b.order);
+    const destOtherTasks = destCol.tasks.filter((t: any) => t.sprintId !== viewedSprint?.id || t.parentId); 
     destSprintTasks.splice(destination.index, 0, movedTask);
     destSprintTasks.forEach((t: any, i: number) => t.order = i);
     destCol.tasks = [...destSprintTasks, ...destOtherTasks];
 
     if (source.droppableId !== destination.droppableId) {
-       const sourceSprintTasks = sourceCol.tasks.filter((t: any) => t.sprintId === viewedSprint?.id).sort((a: any, b: any) => a.order - b.order);
-       const sourceOtherTasks = sourceCol.tasks.filter((t: any) => t.sprintId !== viewedSprint?.id);
+       const sourceSprintTasks = sourceCol.tasks.filter((t: any) => t.sprintId === viewedSprint?.id && !t.parentId).sort((a: any, b: any) => a.order - b.order);
+       const sourceOtherTasks = sourceCol.tasks.filter((t: any) => t.sprintId !== viewedSprint?.id || t.parentId);
        sourceSprintTasks.forEach((t: any, i: number) => t.order = i);
        sourceCol.tasks = [...sourceSprintTasks, ...sourceOtherTasks];
     }
@@ -234,7 +277,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
         const tasksToUpdate: any[] = [];
         destSprintTasks.forEach((t: any) => tasksToUpdate.push({ id: t.id, columnId: destCol.id, order: t.order }));
         if (source.droppableId !== destination.droppableId) {
-           const sourceSprintTasks = sourceCol.tasks.filter((t: any) => t.sprintId === viewedSprint?.id);
+           const sourceSprintTasks = sourceCol.tasks.filter((t: any) => t.sprintId === viewedSprint?.id && !t.parentId);
            sourceSprintTasks.forEach((t: any) => tasksToUpdate.push({ id: t.id, columnId: sourceCol.id, order: t.order }));
         }
         await fetch('/api/tasks/reorder', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tasks: tasksToUpdate }) });
@@ -267,7 +310,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const targetColumnId = columnId || (normalColumns.length > 0 ? normalColumns[0].id : null);
     if (!targetColumnId) return alert("Crea una columna en el tablero primero");
     const tempId = Math.random().toString();
-    const newTaskObj = { id: tempId, title: newTaskTitle, assignee: null, sprintId, columnId: targetColumnId };
+    const newTaskObj = { id: tempId, title: newTaskTitle, assignee: null, sprintId, columnId: targetColumnId, parentId: null };
     
     setColumns(columns.map((col: any) => col.id === targetColumnId ? { ...col, tasks: [...col.tasks, newTaskObj] } : col));
     setNewTaskTitle(''); setAddingTaskToCol(null);
@@ -284,11 +327,43 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     }
   };
 
+  const handleCreateSubtask = async (parentId: string, title: string) => {
+    if (!title.trim() || !canEdit) return;
+    const parent = allTasks.find((t: any) => t.id === parentId);
+    if (!parent) return;
+
+    const tempId = Math.random().toString();
+    const newSubtask = { id: tempId, title, assignee: null, sprintId: parent.sprintId, epicId: parent.epicId, columnId: parent.columnId, parentId, type: 'Sub' };
+    setColumns((prev: any) => prev.map((col: any) => col.id === parent.columnId ? { ...col, tasks: [...col.tasks, newSubtask] } : col));
+
+    const res = await fetch('/api/tasks', { method: 'POST', body: JSON.stringify({ title, columnId: parent.columnId, spaceId: space.id, parentId, type: 'Sub' }) });
+    if (res.ok) {
+      const savedTask = await res.json();
+      if (parent.sprintId || parent.epicId) {
+        await fetch('/api/tasks', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ taskId: savedTask.id, sprintId: parent.sprintId || null, epicId: parent.epicId || null }) });
+        savedTask.sprintId = parent.sprintId;
+        savedTask.epicId = parent.epicId;
+      }
+      setColumns((prev: any) => prev.map((col: any) => col.id === parent.columnId ? { ...col, tasks: col.tasks.map((t: any) => t.id === tempId ? savedTask : t) } : col));
+      router.refresh();
+    }
+  };
+
   const handleDeleteTask = async (columnId: string, taskId: string) => {
     if (!isAdmin) return;
     if (!confirm("¿Eliminar esta tarea definitivamente?")) return;
-    setColumns(columns.map((col: any) => col.id === columnId ? { ...col, tasks: col.tasks.filter((t: any) => t.id !== taskId) } : col));
+    setColumns(columns.map((col: any) => col.id === columnId ? { ...col, tasks: col.tasks.filter((t: any) => t.id !== taskId && t.parentId !== taskId) } : col));
     await fetch(`/api/tasks?taskId=${taskId}`, { method: 'DELETE' }); router.refresh();
+  };
+
+  // 🔥 NUEVA FUNCIÓN PARA ELIMINAR SUB-TAREAS 🔥
+  const handleDeleteSubtask = async (subtaskId: string, columnId: string) => {
+    if (!canEdit) return;
+    if (!confirm("¿Eliminar esta sub-tarea definitivamente?")) return;
+    
+    setColumns((prev: any) => prev.map((col: any) => col.id === columnId ? { ...col, tasks: col.tasks.filter((t: any) => t.id !== subtaskId) } : col));
+    await fetch(`/api/tasks?taskId=${subtaskId}`, { method: 'DELETE' });
+    router.refresh();
   };
 
   const handleAssignTask = async (columnId: string, taskId: string, assigneeId: string) => {
@@ -320,26 +395,59 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
   const BacklogRow = ({ task, index }: { task: any, index: number }) => {
     const epic = epics.find((e: any) => e.id === task.epicId);
+    const subtasks = allTasks.filter((t: any) => t.parentId === task.id);
+    const hasSubtasks = subtasks.length > 0;
+    const isExpanded = expandedTasks[task.id];
     
     return (
       <Draggable draggableId={task.id} index={index} isDragDisabled={!canEdit}>
         {(provided, snapshot) => (
-          <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} onClick={() => setEditingTask(task)} className={`flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4 bg-[#22272b] p-3 rounded-lg border border-[#30363d] hover:border-emerald-500/50 cursor-pointer mb-2 transition-colors ${snapshot.isDragging ? 'shadow-xl border-emerald-500 z-50' : ''}`}>
-            
-            <div className="flex flex-col gap-1 w-20 sm:w-24 shrink-0">
-              <span className={`text-[9px] w-max px-2 py-0.5 rounded font-bold uppercase ${getTypeColor(task.type)}`}>{task.type || 'Task'}</span>
-              {epic && <span className="text-[8px] truncate px-1.5 py-0.5 rounded border border-purple-500/50 bg-purple-500/10 text-purple-300 font-extrabold shadow-[0_0_10px_rgba(168,85,247,0.4)]">🚀 {epic.name}</span>}
-            </div>
-
-            <p className="text-sm text-white flex-1 min-w-[150px] truncate">{task.title}</p>
-            
-            <div className="flex items-center gap-3 shrink-0 ml-auto">
-              {task.priority && <span title={task.priority} className={`w-2.5 h-2.5 rounded-full ${task.priority === 'Alta' ? 'bg-red-500' : task.priority === 'Baja' ? 'bg-blue-500' : 'bg-yellow-500'}`}></span>}
-              <span className="text-xs font-bold text-gray-500 bg-[#161a1d] px-2 py-1 rounded-md flex items-center"><Clock size={12} className="mr-1"/>{task.effortHours || 0}h</span>
-              <div className="w-6 h-6 rounded-full bg-emerald-900 border border-[#30363d] flex items-center justify-center text-[10px] font-bold text-white overflow-hidden">
-                {task.assignee ? (task.assignee.image ? <img src={task.assignee.image} referrerPolicy="no-referrer" className="w-full h-full object-cover" alt="avatar" /> : task.assignee.name.charAt(0)) : '?'}
+          <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={`mb-2 ${snapshot.isDragging ? 'z-50' : ''}`}>
+            <div onClick={() => setEditingTask(task)} className={`flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4 bg-[#22272b] p-3 rounded-lg border border-[#30363d] hover:border-emerald-500/50 cursor-pointer transition-colors ${snapshot.isDragging ? 'shadow-xl border-emerald-500' : ''} ${isExpanded ? 'rounded-b-none border-b-0' : ''}`}>
+              <div className="flex flex-col gap-1 w-20 sm:w-24 shrink-0">
+                <span className={`text-[9px] w-max px-2 py-0.5 rounded font-bold uppercase ${getTypeColor(task.type)}`}>{task.type || 'Task'}</span>
+                {epic && <span className="text-[8px] truncate px-1.5 py-0.5 rounded border border-purple-500/50 bg-purple-500/10 text-purple-300 font-extrabold shadow-[0_0_10px_rgba(168,85,247,0.4)]">🚀 {epic.name}</span>}
+              </div>
+              <p className="text-sm text-white flex-1 min-w-[150px] truncate">{task.title}</p>
+              
+              <div className="flex items-center gap-3 shrink-0 ml-auto">
+                {hasSubtasks && (
+                  <button onClick={(e) => toggleSubtasks(task.id, e)} className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-bold transition-colors ${isExpanded ? 'bg-blue-500/20 text-blue-400' : 'bg-[#161a1d] text-gray-400 hover:text-white'}`}>
+                    <GitCommit size={14}/> {subtasks.length}
+                  </button>
+                )}
+                {task.priority && <span title={task.priority} className={`w-2.5 h-2.5 rounded-full ${task.priority === 'Alta' ? 'bg-red-500' : task.priority === 'Baja' ? 'bg-blue-500' : 'bg-yellow-500'}`}></span>}
+                <span className="text-xs font-bold text-gray-500 bg-[#161a1d] px-2 py-1 rounded-md flex items-center"><Clock size={12} className="mr-1"/>{task.effortHours || 0}h</span>
+                <div className="w-6 h-6 rounded-full bg-emerald-900 border border-[#30363d] flex items-center justify-center text-[10px] font-bold text-white overflow-hidden">
+                  {task.assignee ? (task.assignee.image ? <img src={task.assignee.image} referrerPolicy="no-referrer" className="w-full h-full object-cover" alt="avatar" /> : task.assignee.name.charAt(0)) : '?'}
+                </div>
               </div>
             </div>
+            
+            {isExpanded && hasSubtasks && (
+              <div className="bg-[#1a1e23] border border-[#30363d] border-t-0 rounded-b-lg p-2 pl-8 space-y-1">
+                {subtasks.map((st: any) => {
+                  const stCol = columns.find((c:any) => c.id === st.columnId);
+                  const isStDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
+                  
+                  return (
+                    <div key={st.id} className="flex items-center justify-between bg-[#22272b] border border-[#30363d] p-2 rounded hover:border-blue-500/50 group transition-colors">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <input
+                          type="checkbox"
+                          checked={isStDone}
+                          onChange={(e) => { e.stopPropagation(); handleToggleSubtaskStatus(st.id, isStDone); }}
+                          disabled={!canEdit}
+                          className="w-4 h-4 rounded cursor-pointer accent-emerald-500 shrink-0"
+                        />
+                        <span onClick={() => setEditingTask(st)} className={`text-xs truncate cursor-pointer hover:text-blue-400 ${isStDone ? 'text-emerald-400 line-through opacity-70' : 'text-gray-300'}`}>{st.title}</span>
+                      </div>
+                      <span className="text-[9px] uppercase font-bold text-gray-500 bg-[#161a1d] px-1.5 py-0.5 rounded shrink-0">{stCol?.title || 'Backlog'}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </Draggable>
@@ -349,12 +457,14 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   const TaskCard = ({ task, colId, index }: { task: any, colId: string, index: number }) => {
     const isDropdownActive = activeDropdown === task.id;
     const epic = epics.find((e: any) => e.id === task.epicId);
+    const subtasks = allTasks.filter((t: any) => t.parentId === task.id);
+    const hasSubtasks = subtasks.length > 0;
+    const isExpanded = expandedTasks[task.id];
     
     return (
       <Draggable draggableId={task.id} index={index} isDragDisabled={!canEdit || !isViewedSprintActive}>
         {(provided, snapshot) => {
           const draggableStyle = { ...provided.draggableProps.style, zIndex: isDropdownActive ? 9999 : (snapshot.isDragging ? 50 : 1) };
-
           return (
             <div 
               ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} onClick={() => setEditingTask(task)} 
@@ -374,8 +484,39 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   {task.isBlocked && <AlertCircle size={14} className="text-red-400 shrink-0" title="¡Bloqueado!" />}
               </div>
               <p className="text-sm text-white mb-3 pr-2 leading-relaxed select-none">{task.title}</p>
+              
+              {isExpanded && hasSubtasks && (
+                <div className="mb-3 bg-[#1a1e23] border border-[#30363d] rounded p-1.5 space-y-1" onClick={e => e.stopPropagation()}>
+                  {subtasks.map((st: any) => {
+                    const stCol = columns.find((c:any) => c.id === st.columnId);
+                    const stDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
+                    return (
+                      <div key={st.id} className="flex items-center justify-between bg-[#22272b] p-1.5 rounded border border-[#30363d] hover:border-blue-500/50 transition-colors">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <input
+                            type="checkbox"
+                            checked={stDone}
+                            onChange={(e) => { e.stopPropagation(); handleToggleSubtaskStatus(st.id, stDone); }}
+                            disabled={!canEdit}
+                            className="w-3.5 h-3.5 rounded cursor-pointer accent-emerald-500 shrink-0"
+                          />
+                          <span onClick={() => setEditingTask(st)} className={`text-xs truncate pr-2 cursor-pointer hover:text-blue-400 ${stDone ? 'text-gray-500 line-through' : 'text-gray-300'}`}>{st.title}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <div className="flex items-center justify-between border-t border-[#30363d] pt-2 mt-2">
-                <span className="text-xs font-bold text-gray-500 flex items-center gap-1 bg-[#1a1e23] px-2 py-1 rounded-md border border-[#30363d]"><Clock size={12}/> {task.effortHours || 0}h</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-gray-500 flex items-center gap-1 bg-[#1a1e23] px-2 py-1 rounded-md border border-[#30363d]"><Clock size={12}/> {task.effortHours || 0}h</span>
+                  {hasSubtasks && (
+                    <button onClick={(e) => toggleSubtasks(task.id, e)} className={`flex items-center gap-1 px-1.5 py-1 rounded text-[10px] font-bold transition-colors ${isExpanded ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-[#1a1e23] text-gray-500 border border-[#30363d] hover:text-white'}`}>
+                      <GitCommit size={12}/> {subtasks.length}
+                    </button>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   {canEdit && isViewedSprintActive ? (
                     <button onClick={(e) => { e.stopPropagation(); setActiveDropdown(isDropdownActive ? null : task.id); }} className="flex items-center gap-1 text-xs text-gray-400 hover:text-emerald-400 transition-colors"><span className="max-w-[70px] truncate font-medium">{task.assignee ? task.assignee.name.split(' ')[0] : 'Sin asignar'}</span><ChevronDown size={12} className={`opacity-50 transition-transform ${isDropdownActive ? 'rotate-180' : ''}`} /></button>
@@ -418,16 +559,20 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     <>
       {editingTask && (
         <TaskModal 
-          task={editingTask} 
+          task={editingTask}
+          allTasks={allTasks}
+          columns={columns}
           onClose={() => setEditingTask(null)} 
           onSave={handleSaveTaskDetails}
+          onAddSubtask={handleCreateSubtask} 
+          onToggleSubtask={handleToggleSubtaskStatus} 
+          onDeleteSubtask={handleDeleteSubtask} // 🔥 PASAMOS LA NUEVA FUNCIÓN AL MODAL 🔥
           members={space.members}
           epics={epics} 
           readOnly={isEditingTaskReadOnly}
         />
       )}
 
-      {/* 🔥 MODAL DE ÉPICA 🔥 */}
       {editingEpic && (
         <EpicModal 
           epic={editingEpic}
@@ -441,24 +586,17 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
       <div className="flex h-screen bg-[#1d2125] text-[#c9d1d9] font-sans overflow-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
         
-        {/* OVERLAY OSCURO PARA MÓVIL CUANDO EL MENÚ ESTÁ ABIERTO */}
         {isMobileMenuOpen && (
-          <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" 
-            onClick={() => setIsMobileMenuOpen(false)} 
-          />
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" onClick={() => setIsMobileMenuOpen(false)} />
         )}
 
-        {/* PANEL LATERAL (RESPONSIVO) */}
         <aside className={`w-64 bg-[#161a1d] border-r border-[#30363d] flex flex-col shrink-0 fixed md:relative z-50 md:z-20 h-full transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}`}>
           <div className="h-16 flex items-center justify-between md:justify-start gap-3 px-4 border-b border-[#30363d]">
             <div className="flex items-center gap-3 overflow-hidden">
               <div className="w-8 h-8 rounded bg-emerald-950 border border-emerald-500 flex items-center justify-center text-emerald-400 font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)] shrink-0">{space.name.charAt(0).toUpperCase()}</div>
               <div className="overflow-hidden"><h2 className="text-white font-bold truncate text-sm">{space.name}</h2><p className="text-xs text-emerald-500 truncate font-medium">Rol: {userRole}</p></div>
             </div>
-            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-gray-400 hover:text-white p-1">
-              <X size={20} />
-            </button>
+            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-gray-400 hover:text-white p-1"><X size={20} /></button>
           </div>
           
           <nav className="flex-1 overflow-y-auto p-3 space-y-1">
@@ -478,7 +616,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
           <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-emerald-500/5 blur-[150px] rounded-full pointer-events-none z-0"></div>
           
-          {/* CABECERA RESPONSIVA */}
           <header className="h-16 px-4 md:px-6 border-b border-[#30363d] flex items-center justify-between shrink-0 relative z-30 bg-[#1d2125]/80 backdrop-blur-sm">
             <div className="flex items-center gap-3 flex-1">
               <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-1.5 text-gray-400 hover:text-white bg-[#161a1d] border border-[#30363d] rounded-lg">
@@ -492,7 +629,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
             <div className="flex items-center gap-4"><UserProfileMenu user={currentUser} /></div>
           </header>
 
-          {/* --- MAPA DE ÉPICAS --- */}
           {activeView === 'epicas' && (
             <div className="flex-1 overflow-y-auto p-4 md:p-10 relative z-10 custom-scrollbar bg-[#1d2125] animate-in fade-in duration-300">
               <div className="max-w-5xl mx-auto">
@@ -510,7 +646,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   <div className="flex flex-col items-center justify-center text-center p-8 md:p-16 bg-[#161a1d] border border-dashed border-[#30363d] rounded-2xl">
                     <div className="w-16 h-16 md:w-20 md:h-20 bg-purple-500/10 rounded-full flex items-center justify-center mb-4"><Layers size={28} className="text-purple-500" /></div>
                     <h3 className="text-lg md:text-xl font-bold text-white mb-2">No tienes Épicas activas</h3>
-                    <p className="text-gray-400 max-w-sm mb-6 text-sm md:text-base">Las Épicas te ayudan a agrupar tareas bajo un mismo objetivo gigante (Ej: "Sistema de Pagos").</p>
+                    <p className="text-gray-400 max-w-sm mb-6 text-sm md:text-base">Las Épicas te ayudan a agrupar tareas bajo un mismo objetivo gigante.</p>
                     {canEdit && <button onClick={handleCreateEpic} className="text-purple-400 hover:text-purple-300 font-bold border-b border-purple-500 pb-1">Crear mi primera Épica</button>}
                   </div>
                 ) : (
@@ -523,25 +659,14 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                       const progress = epicTasks.length > 0 ? Math.round((completedEpicTasks.length / epicTasks.length) * 100) : 0;
 
                       return (
-                        <div 
-                          key={epic.id} 
-                          onClick={() => setEditingEpic(epic)} 
-                          className="bg-[#161a1d] border border-[#30363d] hover:border-purple-500/50 rounded-2xl p-5 md:p-6 transition-all group relative overflow-hidden shadow-lg hover:shadow-[0_0_20px_rgba(168,85,247,0.1)] cursor-pointer"
-                        >
+                        <div key={epic.id} onClick={() => setEditingEpic(epic)} className="bg-[#161a1d] border border-[#30363d] hover:border-purple-500/50 rounded-2xl p-5 md:p-6 transition-all group relative overflow-hidden shadow-lg hover:shadow-[0_0_20px_rgba(168,85,247,0.1)] cursor-pointer">
                           <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-purple-500/10 blur-[40px] rounded-full pointer-events-none group-hover:bg-purple-500/20 transition-all"></div>
                           <div className="flex justify-between items-start mb-6 relative z-10">
                             <div>
                               <div className="flex items-center gap-2 mb-1"><span className="bg-purple-500/20 text-purple-400 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-widest border border-purple-500/30">Épica</span></div>
                               <h3 className="text-lg md:text-xl font-bold text-white group-hover:text-purple-300 transition-colors line-clamp-2">{epic.name}</h3>
                             </div>
-                            {isAdmin && (
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); handleDeleteEpic(epic.id); }} 
-                                className="text-gray-500 hover:text-red-400 p-1 rounded-md hover:bg-red-500/10 transition-colors shrink-0"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            )}
+                            {isAdmin && <button onClick={(e) => { e.stopPropagation(); handleDeleteEpic(epic.id); }} className="text-gray-500 hover:text-red-400 p-1 rounded-md hover:bg-red-500/10 transition-colors shrink-0"><Trash2 size={16} /></button>}
                           </div>
                           <div className="space-y-4 relative z-10">
                             <div>
@@ -562,7 +687,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
             </div>
           )}
 
-          {/* --- VISTA DE RESUMEN --- */}
           {activeView === 'resumen' && (
             <div className="flex-1 overflow-y-auto p-4 md:p-8 relative z-10 custom-scrollbar animate-in fade-in duration-300">
               <div className="max-w-5xl mx-auto space-y-6 md:space-y-8">
@@ -623,7 +747,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
             </div>
           )}
 
-          {/* --- VISTA BACKLOG --- */}
           {activeView === 'backlog' && (
             <div className="flex-1 overflow-y-auto p-4 md:p-10 custom-scrollbar relative z-10 bg-[#1d2125]">
               <div className="max-w-5xl mx-auto">
@@ -633,8 +756,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                     <p className="text-gray-400 mt-1 text-sm md:text-base">Planea tus Sprints arrastrando tareas hacia ellos.</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
-                     {canEdit && <button onClick={() => setActiveView('epicas')} className="flex-1 md:flex-none justify-center bg-purple-900/30 hover:bg-purple-800/40 border border-purple-500/50 text-purple-300 px-3 py-2 rounded-lg text-xs md:text-sm font-bold transition-all shadow-[0_0_10px_rgba(168,85,247,0.2)]">Gestionar Épicas</button>}
-
                      {isAdmin && sprints.some((s:any) => s.status === 'COMPLETED') && (
                         <button onClick={() => setShowCompletedSprints(!showCompletedSprints)} className="flex-1 md:flex-none justify-center bg-[#161a1d] hover:bg-[#2c333b] border border-[#30363d] text-gray-400 px-3 py-2 rounded-lg text-xs md:text-sm font-bold transition-all">
                           {showCompletedSprints ? 'Ocultar Finalizados' : 'Ver Finalizados'}
@@ -646,7 +767,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
                 <DragDropContext onDragEnd={onDragEndBacklog}>
                   {sprints.filter((s:any) => showCompletedSprints ? true : s.status !== 'COMPLETED').map((sprint: any) => {
-                    const tasksInSprint = allTasks.filter((t: any) => t.sprintId === sprint.id);
+                    const tasksInSprint = viewedSprintTasks.filter((t: any) => t.sprintId === sprint.id);
                     return (
                       <div key={sprint.id} className={`mb-6 md:mb-8 bg-[#161a1d] border rounded-xl overflow-hidden ${sprint.status === 'ACTIVE' ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-[#30363d]'} ${sprint.status === 'COMPLETED' ? 'opacity-60 grayscale' : ''}`}>
                         <div className="bg-[#1d2125] p-3 md:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-[#30363d]">
@@ -706,7 +827,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
             </div>
           )}
 
-          {/* --- VISTA DE TABLERO KANBAN --- */}
           {activeView === 'tablero' && (
             <div className="flex-1 flex flex-col overflow-hidden relative z-10 bg-[#1d2125]">
               {sprints.filter((s:any) => s.status !== 'PLANNED').length === 0 ? (
@@ -720,12 +840,10 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                 <DragDropContext onDragEnd={onDragEndBoard}>
                   <div className="px-4 md:px-6 py-3 md:py-4 shrink-0 bg-[#1d2125] border-b border-[#30363d] overflow-x-auto custom-scrollbar">
                     <div className="flex items-center justify-between gap-4 min-w-[300px]">
-                      
                       <div className="flex items-center gap-3 md:gap-4">
                         <SprintSelector viewedSprint={viewedSprint} sprints={sprints} setSelectedSprintId={setSelectedSprintId} />
                         {!isViewedSprintActive && <span className="bg-blue-500/20 text-blue-400 text-[10px] md:text-xs px-2 md:px-3 py-1 rounded-full font-bold uppercase tracking-widest border border-blue-500/30">Solo Lectura</span>}
                       </div>
-
                       <div className="flex items-center gap-3">
                         <div className="flex -space-x-2 mr-2">
                           {space.members.slice(0, 4).map((m: any, i: number) => (
@@ -779,18 +897,10 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
             </div>
           )}
 
-          {/* --- VISTA DE LISTA --- */}
           {activeView === 'lista' && (
-            <TaskListView 
-              tasks={allTasks} 
-              columns={columns} 
-              sprints={sprints} 
-              epics={epics} 
-              onTaskClick={(task: any) => setEditingTask(task)} 
-            />
+            <TaskListView tasks={allTasks} columns={columns} sprints={sprints} epics={epics} onTaskClick={(task: any) => setEditingTask(task)} />
           )}
 
-          {/* --- VISTA DE MIEMBROS --- */}
           {activeView === 'miembros' && (
             <div className="flex-1 overflow-y-auto p-4 md:p-10 relative z-10 animate-in fade-in duration-300">
               <div className="max-w-4xl mx-auto">

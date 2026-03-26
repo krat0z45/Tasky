@@ -2,12 +2,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Clock, Calendar, AlertCircle, CheckSquare, Save, RefreshCcw, Lock, CheckCircle } from 'lucide-react';
+import { X, Clock, Calendar, AlertCircle, CheckSquare, Save, RefreshCcw, Lock, CheckCircle, GitCommit, Plus, Trash2 } from 'lucide-react';
 
-export default function TaskModal({ task, onClose, onSave, members, epics = [], readOnly = false }: any) {
+export default function TaskModal({ task, allTasks = [], columns = [], onClose, onSave, onAddSubtask, onToggleSubtask, onDeleteSubtask, members, epics = [], readOnly = false }: any) {
   const [formData, setFormData] = useState({
     title: task.title || '',
-    type: task.type || 'Task',
+    type: task.parentId ? 'Sub' : (task.type || 'Task'),
     priority: task.priority || 'Media',
     effortHours: task.effortHours || 0,
     dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
@@ -15,18 +15,18 @@ export default function TaskModal({ task, onClose, onSave, members, epics = [], 
     epicId: task.epicId || '', 
     description: task.description || '',
     acceptanceCriteria: task.acceptanceCriteria || '',
-    notes: task.notes || '', // 🔥 NUEVO: Estado para Notas
+    notes: task.notes || '', 
     isBlocked: task.isBlocked || false,
   });
 
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const subtasks = allTasks.filter((t: any) => t.parentId === task.id);
   const effortOptions = [0, 2, 4, 6, 8, 10, 16, 24, 40];
 
   const calculateRemainingDays = () => {
     if (!formData.dueDate) return null;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const target = new Date(formData.dueDate);
-    target.setMinutes(target.getMinutes() + target.getTimezoneOffset());
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const target = new Date(formData.dueDate); target.setMinutes(target.getMinutes() + target.getTimezoneOffset());
     return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   };
 
@@ -45,6 +45,14 @@ export default function TaskModal({ task, onClose, onSave, members, epics = [], 
     onClose();
   };
 
+  const handleCreateSubtask = () => {
+    if (!newSubtaskTitle.trim() || readOnly) return;
+    if (onAddSubtask) {
+      onAddSubtask(task.id, newSubtaskTitle);
+      setNewSubtaskTitle('');
+    }
+  };
+
   const inputClass = readOnly 
     ? "w-full bg-[#1a1e23] border border-transparent text-sm text-gray-400 rounded-lg px-3 py-2 cursor-not-allowed" 
     : "w-full bg-[#22272b] border border-[#30363d] text-sm text-white rounded-lg px-3 py-2 focus:outline-none focus:border-emerald-500";
@@ -53,67 +61,48 @@ export default function TaskModal({ task, onClose, onSave, members, epics = [], 
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
       <div className="w-full max-w-4xl bg-[#161a1d] border border-[#30363d] rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
         
-        {/* HEADER */}
         <div className="px-6 py-4 border-b border-[#30363d] flex justify-between items-start bg-[#1d2125] rounded-t-2xl">
           <div className="flex-1 pr-4">
             <div className="flex items-center gap-3">
-              <input 
-                type="text" 
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                disabled={readOnly}
-                className={`w-full bg-transparent text-xl font-bold text-white outline-none border-b transition-colors pb-1 ${readOnly ? 'border-transparent cursor-not-allowed' : 'border-transparent hover:border-[#30363d] focus:border-emerald-500'}`}
-              />
+              {task.parentId && <span className="bg-blue-500/20 text-blue-400 text-[10px] px-2 py-1 rounded flex items-center gap-1 font-bold shrink-0"><GitCommit size={12}/> SUB-TAREA</span>}
+              <input type="text" name="title" value={formData.title} onChange={handleChange} disabled={readOnly} className={`w-full bg-transparent text-xl font-bold text-white outline-none border-b transition-colors pb-1 ${readOnly ? 'border-transparent cursor-not-allowed' : 'border-transparent hover:border-[#30363d] focus:border-emerald-500'}`}/>
               {readOnly && <span className="bg-blue-500/20 text-blue-400 text-xs px-2 py-1 rounded flex items-center gap-1 font-bold shrink-0"><Lock size={12}/> Solo lectura</span>}
             </div>
             <div className="flex gap-4 mt-2 text-xs text-gray-500">
               <span className="flex items-center gap-1"><RefreshCcw size={12}/> Última act: {lastUpdated}</span>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white hover:bg-[#2c333b] rounded transition-colors">
-            <X size={20} />
-          </button>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white hover:bg-[#2c333b] rounded transition-colors"><X size={20} /></button>
         </div>
 
-        {/* BODY */}
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="space-y-5 md:col-span-1">
               
               <div>
                 <label className="block text-xs font-bold text-purple-400 uppercase mb-1.5 flex items-center gap-1.5">🚀 Épica</label>
-                <select name="epicId" value={formData.epicId} onChange={handleChange} disabled={readOnly} className={`${inputClass} border-purple-500/30 focus:border-purple-500 bg-purple-500/5`}>
+                <select name="epicId" value={formData.epicId} onChange={handleChange} disabled={readOnly || !!task.parentId} className={`${inputClass} border-purple-500/30 focus:border-purple-500 bg-purple-500/5`}>
                   <option value="">Sin Épica</option>
                   {epics?.map((e: any) => <option key={e.id} value={e.id}>{e.name}</option>)}
                 </select>
+                {task.parentId && <p className="text-[10px] text-gray-500 mt-1">Las sub-tareas heredan la épica del padre.</p>}
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Tipo de Ticket</label>
-                <select name="type" value={formData.type} onChange={handleChange} disabled={readOnly} className={inputClass}>
-                  {/* 🔥 NUEVOS TIPOS AÑADIDOS 🔥 */}
-                  <option value="Task">Task</option>
-                  <option value="Feature">Feature</option>
-                  <option value="Bug">Bug</option>
-                  <option value="Doc">Doc</option>
-                  <option value="Artefacto">Artefacto</option>
-                  <option value="Spike">Spike</option>
+                <select name="type" value={formData.type} onChange={handleChange} disabled={readOnly || !!task.parentId} className={inputClass}>
+                  <option value="Task">Task</option><option value="Feature">Feature</option><option value="Bug">Bug</option><option value="Doc">Doc</option><option value="Artefacto">Artefacto</option><option value="Spike">Spike</option><option value="Sub">Sub</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Prioridad</label>
-                <select name="priority" value={formData.priority} onChange={handleChange} disabled={readOnly} className={inputClass}>
-                  <option value="Alta">🔴 Alta (P0/P1)</option><option value="Media">🟡 Media (P2)</option><option value="Baja">🔵 Baja (P3)</option>
-                </select>
+                <select name="priority" value={formData.priority} onChange={handleChange} disabled={readOnly} className={inputClass}><option value="Alta">🔴 Alta (P0/P1)</option><option value="Media">🟡 Media (P2)</option><option value="Baja">🔵 Baja (P3)</option></select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5 flex items-center gap-1.5"><Clock size={14}/> Esfuerzo (Hrs)</label>
-                <select name="effortHours" value={formData.effortHours} onChange={handleChange} disabled={readOnly} className={inputClass}>
-                  {effortOptions.map(hrs => <option key={hrs} value={hrs}>{hrs} horas</option>)}
-                </select>
+                <select name="effortHours" value={formData.effortHours} onChange={handleChange} disabled={readOnly} className={inputClass}>{effortOptions.map(hrs => <option key={hrs} value={hrs}>{hrs} horas</option>)}</select>
               </div>
 
               <div>
@@ -128,10 +117,7 @@ export default function TaskModal({ task, onClose, onSave, members, epics = [], 
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Responsable</label>
-                <select name="assigneeId" value={formData.assigneeId} onChange={handleChange} disabled={readOnly} className={inputClass}>
-                  <option value="">Sin asignar</option>
-                  {members?.map((m: any) => <option key={m.userId} value={m.userId}>{m.user.name}</option>)}
-                </select>
+                <select name="assigneeId" value={formData.assigneeId} onChange={handleChange} disabled={readOnly} className={inputClass}><option value="">Sin asignar</option>{members?.map((m: any) => <option key={m.userId} value={m.userId}>{m.user.name}</option>)}</select>
               </div>
 
               <div className="pt-2">
@@ -145,7 +131,6 @@ export default function TaskModal({ task, onClose, onSave, members, epics = [], 
                 </label>
               </div>
 
-              {/* 🔥 ETIQUETA SI LA TAREA ESTÁ CERRADA 🔥 */}
               {task.closedAt && (
                 <div className="pt-4 border-t border-[#30363d] mt-4">
                   <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3 rounded-lg flex items-center gap-3">
@@ -163,15 +148,75 @@ export default function TaskModal({ task, onClose, onSave, members, epics = [], 
             <div className="space-y-6 md:col-span-2">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Descripción</label>
-                <textarea name="description" value={formData.description} onChange={handleChange} disabled={readOnly} placeholder={readOnly ? "Sin descripción..." : "Añade una descripción más detallada..."} className={`${inputClass} h-32 custom-scrollbar resize-none`} />
+                <textarea name="description" value={formData.description} onChange={handleChange} disabled={readOnly} placeholder="Añade una descripción más detallada..." className={`${inputClass} h-32 custom-scrollbar resize-none`} />
               </div>
+
+              {!task.parentId && (
+                <div className="bg-[#1a1e23] border border-[#30363d] rounded-xl p-4">
+                  <h4 className="text-xs font-bold text-blue-400 uppercase mb-3 flex items-center gap-2"><GitCommit size={16}/> Sub-tareas ({subtasks.length})</h4>
+                  
+                  <div className="space-y-2 mb-3 max-h-32 overflow-y-auto custom-scrollbar pr-2">
+                    {subtasks.length === 0 ? (
+                      <p className="text-xs text-gray-500 italic">No hay sub-tareas asociadas.</p>
+                    ) : (
+                      subtasks.map((st: any) => {
+                        const stCol = columns.find((c:any) => c.id === st.columnId);
+                        const isStDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
+                        
+                        return (
+                          <div key={st.id} className="flex items-center justify-between bg-[#22272b] p-2 rounded border border-[#30363d] hover:border-blue-500/50 transition-colors">
+                            <div className="flex items-center gap-3 overflow-hidden">
+                              <input
+                                type="checkbox"
+                                checked={isStDone}
+                                onChange={() => onToggleSubtask && onToggleSubtask(st.id, isStDone)}
+                                disabled={readOnly}
+                                className="w-4 h-4 rounded border-[#30363d] text-emerald-500 focus:ring-emerald-500 bg-[#161a1d] cursor-pointer shrink-0"
+                              />
+                              <span className={`text-sm truncate ${isStDone ? 'text-emerald-400 line-through opacity-70' : 'text-gray-300'}`}>{st.title}</span>
+                            </div>
+                            
+                            {/* 🔥 AÑADIDO: BOTÓN DE ELIMINAR SUBTAREA 🔥 */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-[10px] uppercase font-bold text-gray-500 bg-[#161a1d] px-2 py-0.5 rounded">{stCol?.title || 'Backlog'}</span>
+                              {!readOnly && onDeleteSubtask && (
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); onDeleteSubtask(st.id, st.columnId); }}
+                                  className="text-gray-500 hover:text-red-400 p-1 rounded transition-colors"
+                                  title="Eliminar Sub-tarea"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </div>
+
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {!readOnly && onAddSubtask && (
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={newSubtaskTitle} 
+                        onChange={(e) => setNewSubtaskTitle(e.target.value)} 
+                        onKeyDown={(e) => { if(e.key === 'Enter') handleCreateSubtask(); }} 
+                        placeholder="Nueva sub-tarea..." 
+                        className="flex-1 bg-[#22272b] border border-[#30363d] text-sm text-white rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
+                      />
+                      <button onClick={handleCreateSubtask} disabled={!newSubtaskTitle.trim()} className="bg-[#2c333b] hover:bg-[#3d444d] disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">Añadir</button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-emerald-500/70 uppercase mb-2 flex items-center gap-1.5"><CheckSquare size={14}/> Criterios de Aceptación</label>
-                <textarea name="acceptanceCriteria" value={formData.acceptanceCriteria} onChange={handleChange} disabled={readOnly} placeholder={readOnly ? "Sin criterios definidos..." : "1. El sistema debe permitir...\n2. Validar que..."} className={`${inputClass} h-24 custom-scrollbar resize-none ${readOnly ? '' : '!bg-[#1a2024] !border-emerald-900/30 !text-emerald-100/90 focus:!border-emerald-500'}`} />
+                <textarea name="acceptanceCriteria" value={formData.acceptanceCriteria} onChange={handleChange} disabled={readOnly} placeholder="1. El sistema debe permitir..." className={`${inputClass} h-24 custom-scrollbar resize-none ${readOnly ? '' : '!bg-[#1a2024] !border-emerald-900/30 !text-emerald-100/90 focus:!border-emerald-500'}`} />
               </div>
 
-              {/* 🔥 NUEVO CAMPO: NOTAS 🔥 */}
               <div>
                 <label className="block text-xs font-bold text-blue-400/70 uppercase mb-2 flex items-center gap-1.5">📝 Notas / Comentarios</label>
                 <textarea 
@@ -179,7 +224,7 @@ export default function TaskModal({ task, onClose, onSave, members, epics = [], 
                   value={formData.notes} 
                   onChange={handleChange} 
                   disabled={readOnly} 
-                  placeholder={readOnly ? "Sin notas..." : "Agrega enlaces, comentarios o información adicional del avance..."} 
+                  placeholder="Agrega enlaces, comentarios o información adicional del avance..." 
                   className={`${inputClass} h-24 custom-scrollbar resize-none ${readOnly ? '' : '!bg-[#161a1d] !border-blue-900/30 !text-blue-100/90 focus:!border-blue-500'}`} 
                 />
               </div>
@@ -187,7 +232,6 @@ export default function TaskModal({ task, onClose, onSave, members, epics = [], 
           </div>
         </div>
 
-        {/* FOOTER */}
         <div className="px-6 py-4 border-t border-[#30363d] bg-[#1d2125] flex justify-end gap-3 rounded-b-2xl">
           {readOnly ? (
             <button onClick={onClose} className="bg-[#2c333b] hover:bg-[#3d444d] text-white px-5 py-2 rounded-lg text-sm font-bold transition-colors">Cerrar</button>

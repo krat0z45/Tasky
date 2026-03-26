@@ -175,6 +175,11 @@ model Task {
   notes              String?       @db.Text          // Notas adicionales
   closedAt           DateTime?                       // Fecha de cierre
   
+  //RELACIÓN DE SUB-TAREAS 
+  parentId           String?
+  parent             Task?      @relation("TaskToSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subTasks           Task[]     @relation("TaskToSubtasks")
+
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 

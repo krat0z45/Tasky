@@ -29,9 +29,9 @@ model Sprint {
 // Épicas (Grandes iniciativas que agrupan tareas)
 model Epic {
   id           String     @id @default(cuid())
-  name         String     // Ej: "Sistema de Autenticación"
-  color        String     @default("bg-purple-500") // Para la etiqueta visual en la tarjeta
-  
+  name         String     
+  color        String     @default("bg-purple-500") 
+  description  String?    @db.Text 
   taskyspaceId String
   taskyspace   Taskyspace @relation(fields: [taskyspaceId], references: [id], onDelete: Cascade)
 

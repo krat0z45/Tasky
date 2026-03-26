@@ -4,13 +4,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-// 🔥 AÑADIMOS 'Menu' A LOS ICONOS 🔥
 import { Layout, Users, Plus, Search, Target, Trash2, ExternalLink, User as UserIcon, X, ChevronDown, BarChart2, CheckCircle, Clock, ArchiveRestore, AlertCircle, AlertTriangle, ListTodo, Play, Check, Layers, List, Menu } from 'lucide-react';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 import TaskModal from '../../components/TaskModal';
 import TaskListView from '../../components/TaskListView';
+import EpicModal from '../../components/EpicModal'; 
 
 // --- COMPONENTE CUSTOM: SELECTOR DE SPRINTS ---
 const SprintSelector = ({ viewedSprint, sprints, setSelectedSprintId }: any) => {
@@ -68,7 +68,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   
-  // 🔥 NUEVO: ESTADO PARA EL MENÚ EN CELULAR 🔥
+  // ESTADO PARA EL MENÚ EN CELULAR
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const [activeView, setActiveView] = useState<'resumen' | 'backlog' | 'tablero' | 'miembros' | 'epicas' | 'lista'>('backlog');
@@ -85,7 +85,9 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  
   const [editingTask, setEditingTask] = useState<any | null>(null);
+  const [editingEpic, setEditingEpic] = useState<any | null>(null);
 
   const isAdmin = userRole === 'Administrador';
   const canEdit = userRole === 'Administrador' || userRole === 'Miembro';
@@ -107,8 +109,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   const allTasks = columns.flatMap((c: any) => c.tasks || []);
   const backlogTasks = allTasks.filter((t: any) => !t.sprintId);
   const viewedSprintTasks = viewedSprint ? allTasks.filter((t: any) => t.sprintId === viewedSprint.id) : [];
-  const activeSprintTasks = activeSprint ? allTasks.filter((t: any) => t.sprintId === activeSprint.id) : [];
-
+  
   const doneColumn = normalColumns.find((c: any) => ['LISTO', 'DONE', 'COMPLETADO', 'FINALIZADO', 'HECHO'].includes(c.title.toUpperCase().trim())) || (normalColumns.length > 0 ? normalColumns[normalColumns.length - 1] : null);
   
   const doneTasksList = viewedSprintTasks.filter((t: any) => t.columnId === doneColumn?.id);
@@ -144,6 +145,13 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     if (!name || name.trim() === "") return;
     const res = await fetch('/api/epics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, taskyspaceId: space.id }) });
     if (res.ok) { const newEpic = await res.json(); setEpics([...epics, newEpic]); router.refresh(); }
+  };
+
+  const handleSaveEpicDetails = async (epicId: string, updatedData: any) => {
+    if (!canEdit) return;
+    setEpics((prev: any) => prev.map((e: any) => e.id === epicId ? { ...e, ...updatedData } : e));
+    const res = await fetch('/api/epics', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ epicId, ...updatedData }) });
+    if (res.ok) router.refresh();
   };
 
   const handleDeleteEpic = async (epicId: string) => {
@@ -419,9 +427,21 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
         />
       )}
 
+      {/* 🔥 MODAL DE ÉPICA 🔥 */}
+      {editingEpic && (
+        <EpicModal 
+          epic={editingEpic}
+          tasks={allTasks.filter((t: any) => t.epicId === editingEpic.id)}
+          columns={columns}
+          onClose={() => setEditingEpic(null)}
+          onSave={handleSaveEpicDetails}
+          readOnly={!canEdit}
+        />
+      )}
+
       <div className="flex h-screen bg-[#1d2125] text-[#c9d1d9] font-sans overflow-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
         
-        {/* 🔥 OVERLAY OSCURO PARA MÓVIL CUANDO EL MENÚ ESTÁ ABIERTO 🔥 */}
+        {/* OVERLAY OSCURO PARA MÓVIL CUANDO EL MENÚ ESTÁ ABIERTO */}
         {isMobileMenuOpen && (
           <div 
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" 
@@ -429,14 +449,13 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
           />
         )}
 
-        {/* 🔥 PANEL LATERAL (RESPONSIVO) 🔥 */}
+        {/* PANEL LATERAL (RESPONSIVO) */}
         <aside className={`w-64 bg-[#161a1d] border-r border-[#30363d] flex flex-col shrink-0 fixed md:relative z-50 md:z-20 h-full transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}`}>
           <div className="h-16 flex items-center justify-between md:justify-start gap-3 px-4 border-b border-[#30363d]">
             <div className="flex items-center gap-3 overflow-hidden">
               <div className="w-8 h-8 rounded bg-emerald-950 border border-emerald-500 flex items-center justify-center text-emerald-400 font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)] shrink-0">{space.name.charAt(0).toUpperCase()}</div>
               <div className="overflow-hidden"><h2 className="text-white font-bold truncate text-sm">{space.name}</h2><p className="text-xs text-emerald-500 truncate font-medium">Rol: {userRole}</p></div>
             </div>
-            {/* Botón para cerrar menú solo en móvil */}
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-gray-400 hover:text-white p-1">
               <X size={20} />
             </button>
@@ -459,7 +478,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
           <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-emerald-500/5 blur-[150px] rounded-full pointer-events-none z-0"></div>
           
-          {/* 🔥 CABECERA RESPONSIVA (Hamburguesa) 🔥 */}
+          {/* CABECERA RESPONSIVA */}
           <header className="h-16 px-4 md:px-6 border-b border-[#30363d] flex items-center justify-between shrink-0 relative z-30 bg-[#1d2125]/80 backdrop-blur-sm">
             <div className="flex items-center gap-3 flex-1">
               <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-1.5 text-gray-400 hover:text-white bg-[#161a1d] border border-[#30363d] rounded-lg">
@@ -504,14 +523,25 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                       const progress = epicTasks.length > 0 ? Math.round((completedEpicTasks.length / epicTasks.length) * 100) : 0;
 
                       return (
-                        <div key={epic.id} className="bg-[#161a1d] border border-[#30363d] hover:border-purple-500/50 rounded-2xl p-5 md:p-6 transition-all group relative overflow-hidden shadow-lg hover:shadow-[0_0_20px_rgba(168,85,247,0.1)]">
+                        <div 
+                          key={epic.id} 
+                          onClick={() => setEditingEpic(epic)} 
+                          className="bg-[#161a1d] border border-[#30363d] hover:border-purple-500/50 rounded-2xl p-5 md:p-6 transition-all group relative overflow-hidden shadow-lg hover:shadow-[0_0_20px_rgba(168,85,247,0.1)] cursor-pointer"
+                        >
                           <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-purple-500/10 blur-[40px] rounded-full pointer-events-none group-hover:bg-purple-500/20 transition-all"></div>
                           <div className="flex justify-between items-start mb-6 relative z-10">
                             <div>
                               <div className="flex items-center gap-2 mb-1"><span className="bg-purple-500/20 text-purple-400 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-widest border border-purple-500/30">Épica</span></div>
                               <h3 className="text-lg md:text-xl font-bold text-white group-hover:text-purple-300 transition-colors line-clamp-2">{epic.name}</h3>
                             </div>
-                            {isAdmin && <button onClick={() => handleDeleteEpic(epic.id)} className="text-gray-500 hover:text-red-400 p-1 rounded-md hover:bg-red-500/10 transition-colors shrink-0"><Trash2 size={16} /></button>}
+                            {isAdmin && (
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleDeleteEpic(epic.id); }} 
+                                className="text-gray-500 hover:text-red-400 p-1 rounded-md hover:bg-red-500/10 transition-colors shrink-0"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
                           </div>
                           <div className="space-y-4 relative z-10">
                             <div>

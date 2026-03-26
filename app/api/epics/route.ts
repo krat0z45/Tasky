@@ -25,6 +25,32 @@ export async function POST(request: Request) {
   }
 }
 
+// ACTUALIZAR ÉPICA
+export async function PATCH(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) return new NextResponse("No autorizado", { status: 401 });
+
+    const body = await request.json();
+    const { epicId, name, description, color } = body; 
+
+    if (!epicId) return new NextResponse("Falta ID", { status: 400 });
+
+    const updatedEpic = await prisma.epic.update({
+      where: { id: epicId },
+      data: { 
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description }), 
+        ...(color !== undefined && { color })
+      }
+    });
+    
+    return NextResponse.json(updatedEpic);
+  } catch (error: any) {
+    return new NextResponse(error.message, { status: 500 });
+  }
+}
+
 // ELIMINAR ÉPICA
 export async function DELETE(request: Request) {
   try {

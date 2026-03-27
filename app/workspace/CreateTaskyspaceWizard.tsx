@@ -55,15 +55,14 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
   const handleFinish = async () => {
     setIsLoading(true); 
     try {
-      // 🔥 CORRECCIÓN DEL PAYLOAD (Sincronizado con el backend) 🔥
       const payload = {
         name: formData.name,
         privacy: formData.privacy,
         password: formData.privacy === 'Privado' ? formData.password : null,
         includeTasks: true,
-        customTasks: formData.activities.map(a => a.name), // Las tareas del backlog
-        customStatuses: formData.statuses.map(s => ({ name: s.name, color: s.color })), // Las columnas
-        invitations: formData.invitations // 🔥 Manda el arreglo completo {email, role} para las notificaciones
+        customTasks: formData.activities.map(a => a.name),
+        customStatuses: formData.statuses.map(s => ({ name: s.name, color: s.color })),
+        invitations: formData.invitations 
       };
 
       const response = await fetch('/api/taskyspaces', {
@@ -86,8 +85,6 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
       setIsLoading(false); 
     }
   };
-
-  // --- SUB-COMPONENTES PARA CADA PASO ---
 
   const Step1Templates = () => (
     <div className="space-y-4 pt-4">
@@ -392,15 +389,16 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
     </div>
   );
 
+
   const renderStepContent = () => {
     switch (currentStep) {
-      case 1: return <Step1Templates />;
-      case 2: return <Step2KanbanSummary />;
-      case 3: return <Step3Details />;
-      case 4: return <Step4Activities />;
-      case 5: return <Step5Statuses />;
-      case 6: return <Step6Team />;
-      case 7: return <Step7Final />;
+      case 1: return Step1Templates(); 
+      case 2: return Step2KanbanSummary();
+      case 3: return Step3Details();
+      case 4: return Step4Activities();
+      case 5: return Step5Statuses();
+      case 6: return Step6Team();
+      case 7: return Step7Final();
       default: return null;
     }
   };

@@ -767,8 +767,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
                 <DragDropContext onDragEnd={onDragEndBacklog}>
                   {sprints.filter((s:any) => showCompletedSprints ? true : s.status !== 'COMPLETED').map((sprint: any) => {
-                    const tasksInSprint = viewedSprintTasks.filter((t: any) => t.sprintId === sprint.id);
-                    return (
+                    const tasksInSprint = topLevelTasks.filter((t: any) => t.sprintId === sprint.id);                    return (
                       <div key={sprint.id} className={`mb-6 md:mb-8 bg-[#161a1d] border rounded-xl overflow-hidden ${sprint.status === 'ACTIVE' ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-[#30363d]'} ${sprint.status === 'COMPLETED' ? 'opacity-60 grayscale' : ''}`}>
                         <div className="bg-[#1d2125] p-3 md:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-[#30363d]">
                           <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full sm:w-auto">

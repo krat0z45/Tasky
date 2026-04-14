@@ -20,7 +20,6 @@ export async function PUT(request: Request) {
 
     if (name && name !== currentUser.name) updateData.name = name;
     
-    // Si nos envían una imagen nueva (URL o Base64), la preparamos para guardar
     if (image !== undefined && image !== currentUser.image) {
       updateData.image = image;
     }

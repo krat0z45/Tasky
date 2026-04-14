@@ -1,8 +1,8 @@
 // app/api/tasks/reorder/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../../../lib/auth"; // Verifica que la ruta a lib/auth sea correcta
-import { prisma } from "../../../../lib/db"; // Verifica que la ruta a lib/db sea correcta
+import { authOptions } from "../../../../lib/auth"; 
+import { prisma } from "../../../../lib/db"; 
 
 export async function PUT(request: Request) {
   try {

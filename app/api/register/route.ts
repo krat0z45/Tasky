@@ -8,12 +8,12 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { name, email, password } = body;
 
-    // 1. Validar que no falten datos
+    // Validar que no falten datos
     if (!email || !password) {
       return new NextResponse("Faltan datos", { status: 400 });
     }
 
-    // 2. Revisar si el correo ya existe en tu base de datos Neon
+    // Revisar si el correo ya existe en la base de datos 
     const userExists = await prisma.user.findUnique({
       where: { email },
     });
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       return new NextResponse("El correo ya está registrado", { status: 400 });
     }
 
-    // 3. Encriptar la contraseña y guardar al usuario
+    // Encriptar la contraseña y guardar al usuario
     const hashedPassword = await bcrypt.hash(password, 12);
     const user = await prisma.user.create({
       data: {

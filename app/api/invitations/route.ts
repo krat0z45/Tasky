@@ -5,7 +5,7 @@ import { authOptions } from "../../../lib/auth";
 import { prisma } from "../../../lib/db";
 import bcrypt from "bcryptjs";
 
-// 1. OBTENER LAS INVITACIONES PENDIENTES DEL USUARIO (Para la campanita)
+// OBTENER LAS INVITACIONES PENDIENTES DEL USUARIO 
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -32,13 +32,13 @@ export async function GET(request: Request) {
   }
 }
 
-// 2. ACEPTAR O RECHAZAR UNA INVITACIÓN
+// ACEPTAR O RECHAZAR UNA INVITACIÓN
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) return new NextResponse("No autorizado", { status: 401 });
 
-    const { invitationId, action, password } = await request.json(); // action = 'accept' | 'reject'
+    const { invitationId, action, password } = await request.json();
 
     const invitation = await prisma.invitation.findUnique({
       where: { id: invitationId },
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
 
     // SI ACEPTA:
     if (action === 'accept') {
-      // Validar contraseña si el espacio es privado
+      
       if (invitation.taskyspace.privacy === "Privado" && invitation.taskyspace.password) {
         if (!password) {
           return new NextResponse("Se requiere contraseña para este espacio", { status: 400 });

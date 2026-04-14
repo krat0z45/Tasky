@@ -3,7 +3,7 @@
 
 import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
-import { Target, X, Code, KanbanSquare, ArrowRight, Lock, Unlock, Zap, Plus, GripVertical, Trash2, Edit2, Check, Rocket, ListTodo, GitCommit, Layers, BarChart2,Users } from 'lucide-react';
+import { Target, X, Code, KanbanSquare, ArrowRight, Lock, Unlock, Zap, Plus, GripVertical, Trash2, Edit2, Check, Rocket, ListTodo, GitCommit, Layers, BarChart2, Users } from 'lucide-react';
 
 interface CreateTaskyspaceWizardProps {
   onClose: () => void;
@@ -23,6 +23,19 @@ const defaultActivities = [
   { id: 3, name: 'Definir arquitectura de la API' },
 ];
 
+// 🔥 Función helper para darle colores únicos a cada rol en la UI
+const getRoleBadgeStyle = (roleName: string) => {
+  switch(roleName) {
+    case 'Administrador': return 'bg-red-500/10 text-red-400 border-red-500/20';
+    case 'Product Owner': return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+    case 'Project Manager': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+    case 'Tech Lead': return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
+    case 'Tester': return 'bg-pink-500/10 text-pink-400 border-pink-500/20';
+    case 'DevOps': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
+    default: return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'; // Developer
+  }
+};
+
 export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspaceWizardProps) {
   const router = useRouter(); 
   const [isLoading, setIsLoading] = useState(false); 
@@ -39,18 +52,15 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
     invitations: [] as { email: string; role: string; name?: string }[]
   });
 
-  // 🔥 SOLUCIÓN: ESTADOS LEVANTADOS AL COMPONENTE PADRE 🔥
-  // Estados del Paso 4
   const [newActivityName, setNewActivityName] = useState('');
   
-  // Estados del Paso 5
   const [newStatusName, setNewStatusName] = useState('');
   const [editingStatusId, setEditingStatusId] = useState<number | null>(null);
   const [editingStatusName, setEditingStatusName] = useState('');
 
-  // Estados del Paso 6
+  // 🔥 SOLUCIÓN: Cambiamos el rol por defecto de 'Miembro' a 'Developer'
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('Miembro');
+  const [role, setRole] = useState('Developer'); 
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
 
@@ -60,7 +70,7 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
     { title: 'Detalles del Proyecto', desc: 'Démosle nombre y seguridad a tu ecosistema.' },
     { title: 'Backlog Inicial', desc: 'Añade las primeras tareas o ideas pendientes.' },
     { title: 'Flujo de Estados', desc: 'Configura las columnas de tu Tablero Kanban.' },
-    { title: 'Invita a tu equipo', desc: 'Asigna roles (Miembro, Admin, Visor).' },
+    { title: 'Invita a tu equipo', desc: 'Asigna roles Ágiles al equipo.' },
     { title: '¡Lanzamiento!', desc: 'Tu Taskyspace está listo para despegar.' },
   ];
 
@@ -108,8 +118,6 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
       setIsLoading(false); 
     }
   };
-
-  // --- SUB-COMPONENTES (SIN USESTATE INTERNO) ---
 
   const Step1Templates = () => (
     <div className="space-y-4 pt-4">
@@ -381,12 +389,19 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
         <div className="space-y-3 bg-[#1a1e23] p-5 rounded-xl border border-[#30363d]">
           <label className="block text-sm font-bold text-gray-300">Buscar por correo electrónico <span className="text-emerald-400">*</span></label>
           <div className="flex gap-3">
-            <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setSearchError(''); }} onKeyDown={(e) => { if(e.key === 'Enter') addInvitation(); }} placeholder="Ej. master@empresa.com" className="flex-1 bg-[#161a1d] border border-[#30363d] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition-all shadow-inner"/>
-            <select value={role} onChange={(e) => setRole(e.target.value)} className="bg-[#161a1d] border border-[#30363d] font-bold text-sm text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-emerald-500 transition-all">
-              <option value="Miembro">Miembro</option>
+            <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setSearchError(''); }} onKeyDown={(e) => { if(e.key === 'Enter') addInvitation(); }} placeholder="Ej. dev@empresa.com" className="flex-1 bg-[#161a1d] border border-[#30363d] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition-all shadow-inner"/>
+            
+            {/* 🔥 NUEVO MENÚ DE ROLES ÁGILES 🔥 */}
+            <select value={role} onChange={(e) => setRole(e.target.value)} className="bg-[#161a1d] border border-[#30363d] font-bold text-sm text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-emerald-500 transition-all outline-none">
+              <option value="Developer">Developer</option>
+              <option value="Project Manager">Project Manager</option>
+              <option value="Product Owner">Product Owner</option>
+              <option value="Tech Lead">Tech Lead</option>
+              <option value="Tester">Tester</option>
+              <option value="DevOps">DevOps</option>
               <option value="Administrador">Administrador</option>
-              <option value="Solo Visor">Solo Visor</option>
             </select>
+
             <button onClick={addInvitation} disabled={isSearching} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50 shadow-md">
               {isSearching ? 'Buscando...' : <><Plus size={16} /> Agregar</>}
             </button>
@@ -402,7 +417,10 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
                 <span className="text-sm text-white font-bold block">{inv.name || 'Usuario Tasky'}</span>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-xs text-gray-400">{inv.email}</span>
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${inv.role === 'Administrador' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>{inv.role}</span>
+                  {/* 🔥 APLICACIÓN DE COLORES DINÁMICOS POR ROL 🔥 */}
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${getRoleBadgeStyle(inv.role)}`}>
+                    {inv.role}
+                  </span>
                 </div>
               </div>
               <button onClick={() => removeInvitation(inv.email)} className="text-gray-500 hover:text-red-400 bg-[#161a1d] p-2 rounded-lg transition-colors border border-[#30363d]"><Trash2 size={18} /></button>

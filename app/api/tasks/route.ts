@@ -10,7 +10,6 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) return new NextResponse("No autorizado", { status: 401 });
 
-    // 🔥 AÑADIDO: Ahora recibe 'type' desde el frontend
     const { title, columnId, spaceId, parentId, type } = await request.json(); 
 
     const newTask = await prisma.task.create({
@@ -19,7 +18,7 @@ export async function POST(request: Request) {
         columnId,
         taskyspaceId: spaceId,
         parentId: parentId || null, 
-        type: type || "Task", // 🔥 AÑADIDO: Guarda el tipo, si no hay, usa "Task"
+        type: type || "Task",
         order: 0,
       },
       include: {
@@ -43,8 +42,7 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     
     const { 
-      taskId, assigneeId, sprintId, epicId, parentId, 
-      columnId, // Permite mover la sub-tarea de columna
+      taskId, assigneeId, sprintId, epicId, parentId, columnId, 
       title, description, type, priority, effortHours, 
       dueDate, acceptanceCriteria, isBlocked, notes, closedAt 
     } = body;

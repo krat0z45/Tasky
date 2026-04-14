@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { X, Layers, Save, CheckCircle, Clock, Target, ListTodo, AlignLeft } from 'lucide-react';
 
 export default function EpicModal({ epic, tasks, columns, onClose, onSave, readOnly = false }: any) {
-  // 🔥 AÑADIMOS 'description' AL ESTADO INICIAL
+  
   const [formData, setFormData] = useState({
     name: epic.name || '',
     description: epic.description || '',

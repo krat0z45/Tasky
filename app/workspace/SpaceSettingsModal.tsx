@@ -17,7 +17,7 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
   const [members, setMembers] = useState<any[]>([]);
   const [pending, setPending] = useState<any[]>([]);
   const [emailToInvite, setEmailToInvite] = useState('');
-  const [roleToInvite, setRoleToInvite] = useState('Miembro');
+  const [roleToInvite, setRoleToInvite] = useState('Developer'); // 🔥 Rol por defecto actualizado
   const [loading, setLoading] = useState(true);
 
   // Cargar datos al abrir el modal
@@ -122,11 +122,16 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
                   <select 
                     value={roleToInvite} 
                     onChange={e => setRoleToInvite(e.target.value)} 
-                    className="w-full sm:w-auto bg-[#22272b] border border-[#30363d] rounded-lg px-3 py-2.5 text-sm text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all"
+                    className="w-full sm:w-auto bg-[#22272b] border border-[#30363d] rounded-lg px-3 py-2.5 text-sm text-white font-medium focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all cursor-pointer"
                   >
-                    <option>Miembro</option>
-                    <option>Administrador</option>
-                    <option>Solo Visor</option>
+                    {/* 🔥 NUEVOS ROLES ÁGILES 🔥 */}
+                    <option value="Developer">Developer</option>
+                    <option value="Project Manager">Project Manager</option>
+                    <option value="Product Owner">Product Owner</option>
+                    <option value="Tech Lead">Tech Lead</option>
+                    <option value="Tester">Tester</option>
+                    <option value="DevOps">DevOps</option>
+                    <option value="Administrador">Administrador</option>
                   </select>
                   <button 
                     onClick={() => { executeAction({ action: 'invite_user', emailToInvite, roleToInvite }, 'Invitado'); setEmailToInvite(''); }} 
@@ -147,8 +152,8 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
                       
                       {/* Info del usuario */}
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-emerald-950 border border-emerald-500/50 flex items-center justify-center text-emerald-400 font-bold text-sm shrink-0">
-                          {m.user.name.charAt(0)}
+                        <div className="w-10 h-10 rounded-full bg-emerald-950 border border-emerald-500/50 flex items-center justify-center text-emerald-400 font-bold text-sm shrink-0 overflow-hidden">
+                          {m.user.image ? <img src={m.user.image} referrerPolicy="no-referrer" className="w-full h-full object-cover" alt="avatar" /> : m.user.name.charAt(0)}
                         </div>
                         <div className="overflow-hidden">
                           <p className="text-sm text-white font-medium truncate">{m.user.name}</p>
@@ -161,11 +166,16 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
                         <select 
                           value={m.role} 
                           onChange={(e) => executeAction({ action: 'change_role', targetUserId: m.user.id, newRole: e.target.value }, 'Rol actualizado')}
-                          className="bg-[#161a1d] border border-[#30363d] rounded-lg text-xs md:text-sm text-gray-300 py-1.5 px-2 outline-none focus:border-emerald-500 transition-colors cursor-pointer"
+                          className="bg-[#161a1d] border border-[#30363d] rounded-lg text-xs md:text-sm text-gray-300 py-1.5 px-2 outline-none focus:border-emerald-500 transition-colors cursor-pointer font-medium"
                         >
-                          <option>Miembro</option>
-                          <option>Administrador</option>
-                          <option>Solo Visor</option>
+                          {/* 🔥 NUEVOS ROLES ÁGILES 🔥 */}
+                          <option value="Developer">Developer</option>
+                          <option value="Project Manager">Project Manager</option>
+                          <option value="Product Owner">Product Owner</option>
+                          <option value="Tech Lead">Tech Lead</option>
+                          <option value="Tester">Tester</option>
+                          <option value="DevOps">DevOps</option>
+                          <option value="Administrador">Administrador</option>
                         </select>
                         <button 
                           onClick={() => { if(confirm(`¿Estás seguro de expulsar a ${m.user.name}?`)) executeAction({ action: 'remove_member', targetUserId: m.user.id }, 'Expulsado'); }} 
@@ -189,7 +199,7 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
                       <div key={p.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-[#161a1d] p-3 rounded-xl border border-[#30363d] opacity-80 gap-2 sm:gap-0">
                         <p className="text-sm text-gray-300 truncate">
                           {p.invitedUser.email} 
-                          <span className="text-emerald-400 bg-emerald-950/40 border border-emerald-900/50 px-2 py-0.5 rounded text-xs ml-2">
+                          <span className="text-emerald-400 bg-emerald-950/40 border border-emerald-900/50 px-2 py-0.5 rounded text-xs ml-2 font-medium uppercase tracking-wider">
                             {p.role}
                           </span>
                         </p>

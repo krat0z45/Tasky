@@ -12,6 +12,19 @@ import TaskModal from '../../components/TaskModal';
 import TaskListView from '../../components/TaskListView';
 import EpicModal from '../../components/EpicModal'; 
 
+const getRoleBadgeStyle = (roleName: string) => {
+  switch(roleName) {
+    case 'Administrador': return 'bg-red-500/10 text-red-400 border-red-500/20';
+    case 'Product Owner': return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+    case 'Project Manager': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+    case 'Tech Lead': return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
+    case 'Tester': return 'bg-pink-500/10 text-pink-400 border-pink-500/20';
+    case 'DevOps': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
+    case 'Developer': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+    default: return 'bg-gray-800/50 text-gray-400 border border-gray-700/50';
+  }
+};
+
 const SprintSelector = ({ viewedSprint, sprints, setSelectedSprintId }: any) => {
   const [isOpen, setIsOpen] = useState(false);
   const availableSprints = sprints.filter((s:any) => s.status !== 'PLANNED');
@@ -83,7 +96,14 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
 
   const isAdmin = userRole === 'Administrador';
-  const canEdit = userRole === 'Administrador' || userRole === 'Miembro';
+  const isPM = userRole === 'Project Manager';
+  const isPO = userRole === 'Product Owner';
+  const isTechLead = userRole === 'Tech Lead';
+  
+  const canEdit = userRole !== 'Solo Visor'; 
+  const canManageSprints = isAdmin || isPM; 
+  const canManageBacklog = isAdmin || isPO || isPM; 
+  const canApproveDone = isAdmin || isTechLead; 
 
   useEffect(() => {
     setColumns(space.columns || []);
@@ -100,7 +120,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   const isViewedSprintActive = viewedSprint?.status === 'ACTIVE';
 
   const allTasks = columns.flatMap((c: any) => c.tasks || []);
-  
   const topLevelTasks = allTasks.filter((t: any) => !t.parentId);
   const backlogTasks = topLevelTasks.filter((t: any) => !t.sprintId);
   const viewedSprintTasks = viewedSprint ? topLevelTasks.filter((t: any) => t.sprintId === viewedSprint.id) : [];
@@ -133,6 +152,17 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleToggleSubtaskStatus = async (subtaskId: string, isCurrentlyDone: boolean) => {
+    // 🔥 VALIDACIÓN MAESTRA DE SEGURIDAD PARA SUB-TAREAS 🔥
+    const st = allTasks.find((t:any) => t.id === subtaskId);
+    if (st && !isAdmin) {
+      if (!st.assigneeId) {
+        return alert("⚠️ Acción bloqueada: Debes asignarte esta sub-tarea antes de poder completarla.");
+      }
+      if (st.assigneeId !== currentUser.id) {
+        return alert("❌ Permiso denegado: Esta sub-tarea está asignada a otro miembro del equipo.");
+      }
+    }
+
     if (!canEdit || !doneColumn || normalColumns.length === 0) return;
     
     const targetColumnId = isCurrentlyDone ? normalColumns[0].id : doneColumn.id;
@@ -163,14 +193,14 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleCreateSprint = async () => {
-    if (!canEdit) return;
+    if (!canManageSprints) return alert("❌ Solo el Project Manager o Administrador pueden crear Sprints.");
     const name = `Sprint ${sprints.length + 1}`;
     const res = await fetch('/api/sprints', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, taskyspaceId: space.id }) });
     if (res.ok) { const newSprint = await res.json(); setSprints([...sprints, newSprint]); router.refresh(); }
   };
 
   const handleCreateEpic = async () => {
-    if (!canEdit) return;
+    if (!canManageBacklog) return alert("❌ Solo PO, PM o Admin pueden crear Épicas.");
     const name = prompt("Escribe el nombre de la nueva Épica (Ej: Sistema de Pagos):");
     if (!name || name.trim() === "") return;
     const res = await fetch('/api/epics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, taskyspaceId: space.id }) });
@@ -178,7 +208,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleSaveEpicDetails = async (epicId: string, updatedData: any) => {
-    if (!canEdit) return;
+    if (!canManageBacklog) return;
     setEpics((prev: any) => prev.map((e: any) => e.id === epicId ? { ...e, ...updatedData } : e));
     const res = await fetch('/api/epics', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ epicId, ...updatedData }) });
     if (res.ok) router.refresh();
@@ -194,7 +224,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleStartSprint = async (sprintId: string) => {
-    if (!canEdit) return;
+    if (!canManageSprints) return alert("❌ Solo el Project Manager o Administrador pueden iniciar Sprints.");
     if (activeSprint) return alert("❌ Error: Ya hay un Sprint activo. Debes completarlo antes de iniciar otro.");
     const startDate = new Date(); const endDate = new Date(); endDate.setDate(startDate.getDate() + 14);
     const res = await fetch('/api/sprints', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sprintId, status: 'ACTIVE', startDate, endDate }) });
@@ -202,7 +232,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleCompleteSprint = async (sprintId: string) => {
-    if (!isAdmin) return alert("🛡️ Acceso denegado: Solo el Administrador puede dar por completado un Sprint.");
+    if (!canManageSprints) return alert("🛡️ Acceso denegado: Solo el Project Manager o Administrador pueden dar por completado un Sprint.");
     const sprintTasks = allTasks.filter((t: any) => t.sprintId === sprintId);
     const incompleteTasks = sprintTasks.filter((t: any) => t.columnId !== doneColumn?.id);
     if (incompleteTasks.length > 0) return alert(`❌ No puedes completar este Sprint. Aún hay ${incompleteTasks.length} tarea(s) fuera de la columna '${doneColumn?.title || 'Listo'}'.`);
@@ -212,7 +242,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleDeleteSprint = async (sprintId: string) => {
-    if (!isAdmin) return;
+    if (!canManageSprints) return alert("Solo PM o Admin pueden borrar sprints.");
     if (!confirm("⚠️ ¿Eliminar este Sprint? Las tareas regresarán al Backlog.")) return;
     setSprints(sprints.filter((s:any) => s.id !== sprintId));
     setColumns((prev: any) => prev.map((col: any) => ({ ...col, tasks: col.tasks.map((t: any) => t.sprintId === sprintId ? { ...t, sprintId: null } : t) })));
@@ -223,6 +253,13 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     if (!isViewedSprintActive) return; 
     const { source, destination, draggableId } = result;
     if (!destination || (source.droppableId === destination.droppableId && source.index === destination.index)) return;
+
+    if (source.droppableId !== destination.droppableId && destination.droppableId === doneColumn?.id) {
+      if (!canApproveDone) {
+        alert("❌ Movimiento bloqueado: Solo el Tech Lead (o Admin) puede validar y pasar tickets a la columna 'Listo'.");
+        return;
+      }
+    }
 
     let newColumns = JSON.parse(JSON.stringify(columns));
     let movedTask: any = null;
@@ -236,7 +273,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
     if (source.droppableId !== destination.droppableId) {
       if (destination.droppableId === doneColumn?.id) {
-        
         const subtasks = allTasks.filter((t: any) => t.parentId === movedTask.id);
         const hasIncomplete = subtasks.some((st: any) => {
           const stCol = columns.find((c:any) => c.id === st.columnId);
@@ -247,7 +283,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
           alert("❌ Acción bloqueada: No puedes mover esta tarea a 'Listo' porque aún tiene sub-tareas pendientes por completar.");
           return; 
         }
-
         movedTask.closedAt = new Date().toISOString(); 
       } 
       else if (source.droppableId === doneColumn?.id) { 
@@ -356,7 +391,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     await fetch(`/api/tasks?taskId=${taskId}`, { method: 'DELETE' }); router.refresh();
   };
 
-  // 🔥 NUEVA FUNCIÓN PARA ELIMINAR SUB-TAREAS 🔥
   const handleDeleteSubtask = async (subtaskId: string, columnId: string) => {
     if (!canEdit) return;
     if (!confirm("¿Eliminar esta sub-tarea definitivamente?")) return;
@@ -367,7 +401,22 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleAssignTask = async (columnId: string, taskId: string, assigneeId: string) => {
-    if (!canEdit) return;
+    const targetTask = allTasks.find((t:any) => t.id === taskId);
+    const isSubtask = !!targetTask?.parentId;
+
+    // 🔥 FILTRO DE SEGURIDAD PARA ASIGNACIONES 🔥
+    if (!isAdmin && !isPM) {
+      if (isSubtask) {
+        // En sub-tareas, dejamos que el TechLead asigne a quien sea.
+        // Si es un Developer normal, solo puede auto-asignárselo.
+        if (!isTechLead && assigneeId !== currentUser.id && assigneeId !== "") {
+           return alert("❌ Solo puedes asignarte la sub-tarea a ti mismo. Deja que el Tech Lead asigne a otros.");
+        }
+      } else {
+        return alert("❌ Permiso denegado: Solo el Project Manager puede reasignar los tickets principales.");
+      }
+    }
+
     const newAssigneeMember = space.members.find((m: any) => m.userId === assigneeId);
     const newAssignee = newAssigneeMember ? newAssigneeMember.user : null;
     
@@ -399,11 +448,13 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const hasSubtasks = subtasks.length > 0;
     const isExpanded = expandedTasks[task.id];
     
+    const isDragDisabled = !canManageBacklog;
+    
     return (
-      <Draggable draggableId={task.id} index={index} isDragDisabled={!canEdit}>
+      <Draggable draggableId={task.id} index={index} isDragDisabled={isDragDisabled}>
         {(provided, snapshot) => (
           <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={`mb-2 ${snapshot.isDragging ? 'z-50' : ''}`}>
-            <div onClick={() => setEditingTask(task)} className={`flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4 bg-[#22272b] p-3 rounded-lg border border-[#30363d] hover:border-emerald-500/50 cursor-pointer transition-colors ${snapshot.isDragging ? 'shadow-xl border-emerald-500' : ''} ${isExpanded ? 'rounded-b-none border-b-0' : ''}`}>
+            <div onClick={() => setEditingTask(task)} className={`flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4 bg-[#22272b] p-3 rounded-lg border border-[#30363d] hover:border-emerald-500/50 cursor-pointer transition-colors ${snapshot.isDragging ? 'shadow-xl border-emerald-500' : ''} ${isExpanded ? 'rounded-b-none border-b-0' : ''} ${isDragDisabled ? 'opacity-90 hover:border-gray-500 cursor-pointer' : ''}`}>
               <div className="flex flex-col gap-1 w-20 sm:w-24 shrink-0">
                 <span className={`text-[9px] w-max px-2 py-0.5 rounded font-bold uppercase ${getTypeColor(task.type)}`}>{task.type || 'Task'}</span>
                 {epic && <span className="text-[8px] truncate px-1.5 py-0.5 rounded border border-purple-500/50 bg-purple-500/10 text-purple-300 font-extrabold shadow-[0_0_10px_rgba(168,85,247,0.4)]">🚀 {epic.name}</span>}
@@ -430,6 +481,10 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   const stCol = columns.find((c:any) => c.id === st.columnId);
                   const isStDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
                   
+                  // 🔥 SEGURO EN UI EXTERNA: Checkbox bloqueado si no es tuyo o no tiene dueño
+                  const canCompleteThis = isAdmin || (st.assigneeId === currentUser.id);
+                  const isCheckboxDisabled = !canEdit || !canCompleteThis;
+
                   return (
                     <div key={st.id} className="flex items-center justify-between bg-[#22272b] border border-[#30363d] p-2 rounded hover:border-blue-500/50 group transition-colors">
                       <div className="flex items-center gap-3 overflow-hidden">
@@ -437,8 +492,9 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                           type="checkbox"
                           checked={isStDone}
                           onChange={(e) => { e.stopPropagation(); handleToggleSubtaskStatus(st.id, isStDone); }}
-                          disabled={!canEdit}
-                          className="w-4 h-4 rounded cursor-pointer accent-emerald-500 shrink-0"
+                          disabled={isCheckboxDisabled}
+                          title={!st.assigneeId ? "Debes asignarla primero" : (!canCompleteThis ? "Asignada a otro miembro" : "")}
+                          className={`w-4 h-4 rounded accent-emerald-500 shrink-0 ${isCheckboxDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                         />
                         <span onClick={() => setEditingTask(st)} className={`text-xs truncate cursor-pointer hover:text-blue-400 ${isStDone ? 'text-emerald-400 line-through opacity-70' : 'text-gray-300'}`}>{st.title}</span>
                       </div>
@@ -461,14 +517,18 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const hasSubtasks = subtasks.length > 0;
     const isExpanded = expandedTasks[task.id];
     
+    const isMyTask = task.assigneeId === currentUser.id;
+    const canDragThisTask = isAdmin || isPM || isTechLead || isMyTask;
+    const isDragDisabled = !canDragThisTask || !isViewedSprintActive;
+
     return (
-      <Draggable draggableId={task.id} index={index} isDragDisabled={!canEdit || !isViewedSprintActive}>
+      <Draggable draggableId={task.id} index={index} isDragDisabled={isDragDisabled}>
         {(provided, snapshot) => {
           const draggableStyle = { ...provided.draggableProps.style, zIndex: isDropdownActive ? 9999 : (snapshot.isDragging ? 50 : 1) };
           return (
             <div 
               ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} onClick={() => setEditingTask(task)} 
-              className={`bg-[#22272b] p-3 rounded-lg border shadow-sm group transition-all relative ${snapshot.isDragging ? 'border-emerald-500 shadow-emerald-500/20 shadow-xl scale-105 rotate-2 cursor-grabbing' : 'border-[#30363d] hover:border-emerald-500/50 cursor-pointer'} ${task.isBlocked ? 'border-red-900/50 bg-red-950/10' : ''} ${!isViewedSprintActive ? 'opacity-80 hover:opacity-100 hover:border-[#30363d] cursor-pointer' : ''}`}
+              className={`bg-[#22272b] p-3 rounded-lg border shadow-sm group transition-all relative ${snapshot.isDragging ? 'border-emerald-500 shadow-emerald-500/20 shadow-xl scale-105 rotate-2 cursor-grabbing' : 'border-[#30363d] hover:border-emerald-500/50 cursor-pointer'} ${task.isBlocked ? 'border-red-900/50 bg-red-950/10' : ''} ${isDragDisabled ? 'opacity-80 hover:opacity-100 hover:border-[#30363d] cursor-pointer' : ''}`}
               style={draggableStyle}
             >
               {isAdmin && isViewedSprintActive && <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(colId, task.id); }} className="absolute top-2 right-2 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity z-10"><Trash2 size={14} /></button>}
@@ -490,6 +550,11 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   {subtasks.map((st: any) => {
                     const stCol = columns.find((c:any) => c.id === st.columnId);
                     const stDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
+                    
+                    // 🔥 SEGURO EN UI EXTERNA: Checkbox bloqueado si no es tuyo o no tiene dueño
+                    const canCompleteThis = isAdmin || (st.assigneeId === currentUser.id);
+                    const isCheckboxDisabled = !canEdit || !canCompleteThis;
+
                     return (
                       <div key={st.id} className="flex items-center justify-between bg-[#22272b] p-1.5 rounded border border-[#30363d] hover:border-blue-500/50 transition-colors">
                         <div className="flex items-center gap-2 overflow-hidden">
@@ -497,8 +562,9 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                             type="checkbox"
                             checked={stDone}
                             onChange={(e) => { e.stopPropagation(); handleToggleSubtaskStatus(st.id, stDone); }}
-                            disabled={!canEdit}
-                            className="w-3.5 h-3.5 rounded cursor-pointer accent-emerald-500 shrink-0"
+                            disabled={isCheckboxDisabled}
+                            title={!st.assigneeId ? "Debes asignarla primero" : (!canCompleteThis ? "Asignada a otro miembro" : "")}
+                            className={`w-3.5 h-3.5 rounded accent-emerald-500 shrink-0 ${isCheckboxDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                           />
                           <span onClick={() => setEditingTask(st)} className={`text-xs truncate pr-2 cursor-pointer hover:text-blue-400 ${stDone ? 'text-gray-500 line-through' : 'text-gray-300'}`}>{st.title}</span>
                         </div>
@@ -518,7 +584,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {canEdit && isViewedSprintActive ? (
+                  {isAdmin || isPM ? (
                     <button onClick={(e) => { e.stopPropagation(); setActiveDropdown(isDropdownActive ? null : task.id); }} className="flex items-center gap-1 text-xs text-gray-400 hover:text-emerald-400 transition-colors"><span className="max-w-[70px] truncate font-medium">{task.assignee ? task.assignee.name.split(' ')[0] : 'Sin asignar'}</span><ChevronDown size={12} className={`opacity-50 transition-transform ${isDropdownActive ? 'rotate-180' : ''}`} /></button>
                   ) : (<span className="text-xs text-gray-500 max-w-[70px] truncate">{task.assignee ? task.assignee.name.split(' ')[0] : 'Sin asignar'}</span>)}
                   
@@ -530,7 +596,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                 </div>
               </div>
               
-              {isDropdownActive && (
+              {isDropdownActive && (isAdmin || isPM) && (
                 <div className="mt-3 pt-3 border-t border-[#30363d] w-full animate-in slide-in-from-top-1 duration-200 cursor-default" onClick={(e) => e.stopPropagation()}>
                   <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 px-1">Asignar miembro</div>
                   <button onClick={() => { handleAssignTask(colId, task.id, ""); setActiveDropdown(null); }} className="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 rounded-lg transition-colors mb-1 font-medium">Quitar asignación</button>
@@ -566,10 +632,16 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
           onSave={handleSaveTaskDetails}
           onAddSubtask={handleCreateSubtask} 
           onToggleSubtask={handleToggleSubtaskStatus} 
-          onDeleteSubtask={handleDeleteSubtask} // 🔥 PASAMOS LA NUEVA FUNCIÓN AL MODAL 🔥
+          onDeleteSubtask={handleDeleteSubtask}
+          onAssignSubtask={(subtaskId: string, newAssigneeId: string) => {
+            const st = allTasks.find((t: any) => t.id === subtaskId);
+            if (st) handleAssignTask(st.columnId, subtaskId, newAssigneeId);
+          }}
           members={space.members}
           epics={epics} 
           readOnly={isEditingTaskReadOnly}
+          currentUserRole={userRole} 
+          currentUserId={currentUser.id} 
         />
       )}
 
@@ -580,7 +652,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
           columns={columns}
           onClose={() => setEditingEpic(null)}
           onSave={handleSaveEpicDetails}
-          readOnly={!canEdit}
+          readOnly={!canManageBacklog}
         />
       )}
 
@@ -637,7 +709,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                     <h2 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3"><Layers className="text-purple-500" size={28} /> Mapa de Épicas</h2>
                     <p className="text-gray-400 mt-2 text-sm md:text-base">Visualiza el progreso de las grandes iniciativas de tu proyecto.</p>
                   </div>
-                  {canEdit && (
+                  {canManageBacklog && (
                     <button onClick={handleCreateEpic} className="w-full md:w-auto bg-purple-600 hover:bg-purple-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba(168,85,247,0.3)] flex items-center justify-center gap-2"><Plus size={18} /> Nueva Épica</button>
                   )}
                 </div>
@@ -647,7 +719,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                     <div className="w-16 h-16 md:w-20 md:h-20 bg-purple-500/10 rounded-full flex items-center justify-center mb-4"><Layers size={28} className="text-purple-500" /></div>
                     <h3 className="text-lg md:text-xl font-bold text-white mb-2">No tienes Épicas activas</h3>
                     <p className="text-gray-400 max-w-sm mb-6 text-sm md:text-base">Las Épicas te ayudan a agrupar tareas bajo un mismo objetivo gigante.</p>
-                    {canEdit && <button onClick={handleCreateEpic} className="text-purple-400 hover:text-purple-300 font-bold border-b border-purple-500 pb-1">Crear mi primera Épica</button>}
+                    {canManageBacklog && <button onClick={handleCreateEpic} className="text-purple-400 hover:text-purple-300 font-bold border-b border-purple-500 pb-1">Crear mi primera Épica</button>}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -761,7 +833,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                           {showCompletedSprints ? 'Ocultar Finalizados' : 'Ver Finalizados'}
                         </button>
                      )}
-                     {canEdit && <button onClick={handleCreateSprint} className="flex-1 md:flex-none justify-center bg-[#2c333b] hover:bg-[#3d444d] border border-[#30363d] text-white px-3 py-2 rounded-lg text-xs md:text-sm font-bold transition-all">Crear Sprint</button>}
+                     {canManageSprints && <button onClick={handleCreateSprint} className="flex-1 md:flex-none justify-center bg-[#2c333b] hover:bg-[#3d444d] border border-[#30363d] text-white px-3 py-2 rounded-lg text-xs md:text-sm font-bold transition-all">Crear Sprint</button>}
                   </div>
                 </div>
 
@@ -779,8 +851,8 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                           
                           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                             {isAdmin && sprint.status === 'PLANNED' && <button onClick={() => handleDeleteSprint(sprint.id)} title="Eliminar Sprint" className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"><Trash2 size={16}/></button>}
-                            {canEdit && sprint.status === 'PLANNED' && <button onClick={() => handleStartSprint(sprint.id)} disabled={tasksInSprint.length === 0} className="w-full sm:w-auto justify-center bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-neutral-950 px-3 md:px-4 py-1.5 rounded-md text-xs md:text-sm font-bold flex items-center gap-1.5"><Play size={14}/> Iniciar Sprint</button>}
-                            {isAdmin && sprint.status === 'ACTIVE' && <button onClick={() => handleCompleteSprint(sprint.id)} className="w-full sm:w-auto justify-center bg-blue-500 hover:bg-blue-400 text-white px-3 md:px-4 py-1.5 rounded-md text-xs md:text-sm font-bold flex items-center gap-1.5"><Check size={14}/> Completar Sprint</button>}
+                            {canManageSprints && sprint.status === 'PLANNED' && <button onClick={() => handleStartSprint(sprint.id)} disabled={tasksInSprint.length === 0} className="w-full sm:w-auto justify-center bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-neutral-950 px-3 md:px-4 py-1.5 rounded-md text-xs md:text-sm font-bold flex items-center gap-1.5"><Play size={14}/> Iniciar Sprint</button>}
+                            {canManageSprints && sprint.status === 'ACTIVE' && <button onClick={() => handleCompleteSprint(sprint.id)} className="w-full sm:w-auto justify-center bg-blue-500 hover:bg-blue-400 text-white px-3 md:px-4 py-1.5 rounded-md text-xs md:text-sm font-bold flex items-center gap-1.5"><Check size={14}/> Completar Sprint</button>}
                           </div>
                         </div>
                         
@@ -912,7 +984,9 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                         <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-emerald-950 border border-[#30363d] flex items-center justify-center text-emerald-400 font-bold text-lg overflow-hidden shrink-0"><img src={member.user.image} referrerPolicy="no-referrer" className="w-full h-full object-cover" alt="avatar" /></div>
                         <div className="overflow-hidden">
                           <h4 className="text-white font-bold text-sm md:text-base truncate">{member.user.name}</h4>
-                          <span className={`text-[10px] md:text-xs px-2 py-0.5 rounded font-medium mt-1 inline-block ${member.role === 'Administrador' ? 'bg-red-950/50 text-red-400 border border-red-900/50' : member.role === 'Miembro' ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900/50' : 'bg-gray-800/50 text-gray-400 border border-gray-700/50'}`}>{member.role}</span>
+                          <span className={`text-[10px] md:text-xs px-2 py-0.5 rounded font-medium mt-1 inline-block ${getRoleBadgeStyle(member.role)}`}>
+                            {member.role}
+                          </span>
                         </div>
                       </div>
                     </div>

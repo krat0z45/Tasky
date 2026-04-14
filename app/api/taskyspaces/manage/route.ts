@@ -14,7 +14,7 @@ export async function POST(request: Request) {
 
     const { action, spaceId, targetUserId, newRole, emailToInvite, roleToInvite } = await request.json();
 
-    // 1. MEDIDA DE SEGURIDAD: Verificar que el usuario sea Administrador
+    // VERIFICAR QUE EL USUARIO ACTUAL ES ADMINISTRADOR DEL ESPACIO
     const currentMember = await prisma.member.findUnique({
       where: { userId_taskyspaceId: { userId: currentUser.id, taskyspaceId: spaceId } }
     });
@@ -23,10 +23,10 @@ export async function POST(request: Request) {
       return new NextResponse("Acceso denegado: Se requieren permisos de Administrador", { status: 403 });
     }
 
-    // 2. EJECUTAR LA ACCIÓN SOLICITADA
+    // EJECUTAR LA ACCIÓN SOLICITADA
     switch (action) {
       case "get_data":
-        // Traer a todos los miembros y las invitaciones pendientes
+        
         const members = await prisma.member.findMany({
           where: { taskyspaceId: spaceId },
           include: { user: { select: { id: true, name: true, email: true } } },
@@ -39,7 +39,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ members, pendingInvs });
 
       case "delete_space":
-        // Eliminará el espacio y automáticamente todas sus tareas, estados y miembros gracias a 'onDelete: Cascade'
         await prisma.taskyspace.delete({ where: { id: spaceId } });
         return NextResponse.json({ success: true });
 

@@ -29,8 +29,7 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
   const canBlock = isAdmin || currentUserRole === 'Tester';
   const canAddSubtasks = isAdmin || currentUserRole === 'Tech Lead' || currentUserRole === 'Developer' || currentUserRole === 'DevOps';
   
-  // 🔥 Ahora cualquiera que no sea visor puede interactuar con el menú de asignar, 
-  // pero el backend/cliente filtrará que solo puedan asignársela a sí mismos.
+ 
   const canAssignSubtasks = currentUserRole !== 'Solo Visor';
 
   const calculateRemainingDays = () => {
@@ -183,7 +182,7 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
                         const stCol = columns.find((c:any) => c.id === st.columnId);
                         const isStDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
                         
-                        // 🔥 RESTRICCIÓN DE COMPLETADO: Tienes que ser el dueño (y debe tener dueño) 🔥
+                        // RESTRICCIÓN DE COMPLETADO: 
                         const canCompleteThis = isAdmin || (st.assigneeId === currentUserId);
                         const isCheckboxDisabled = readOnly || !canCompleteThis;
 

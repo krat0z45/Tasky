@@ -9,7 +9,7 @@ export default async function ProfilePage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) redirect("/login");
 
-  // Buscamos al usuario completo en la BD
+  // Buscamos al usuario completo en la base de datos para obtener su ID y demás información
   const dbUser = await prisma.user.findUnique({
     where: { email: session.user.email }
   });
@@ -27,7 +27,7 @@ export default async function ProfilePage() {
     orderBy: { createdAt: 'desc' }
   });
 
-  // Convertimos a boolean para saber si se registró con Google (no tiene password)
+  // Convertimos a boolean para saber si se registró con Google
   const isGoogleUser = !dbUser.password;
 
   return <ProfileClient user={dbUser} workspaces={userWorkspaces} isGoogleUser={isGoogleUser} />;

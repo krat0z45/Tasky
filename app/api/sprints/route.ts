@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   }
 }
 
-// ACTUALIZAR SPRINT (Iniciar o Completar)
+// ACTUALIZAR SPRINT (Iniciarlo o Completarlo)
 export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -52,7 +52,7 @@ export async function PATCH(request: Request) {
   }
 }
 
-// ELIMINAR SPRINT (Regresa las tareas al Backlog)
+// ELIMINAR SPRINT 
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);

@@ -13,7 +13,7 @@ interface ProfileClientProps {
   isGoogleUser: boolean;
 }
 
-// Generamos avatares predeterminados usando DiceBear
+// Avatares predefinidos de Tasky aqui luis puedes incluir los que quieras
 const PREDEFINED_AVATARS = [
   "https://api.dicebear.com/7.x/bottts/svg?seed=Tasky1&backgroundColor=059669",
   "https://api.dicebear.com/7.x/bottts/svg?seed=Tasky2&backgroundColor=0ea5e9",
@@ -42,7 +42,7 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
 
   const initial = name ? name.charAt(0).toUpperCase() : 'U';
 
-  // Manejar la subida de un archivo local (Convertir a Base64)
+  // Manejar la subida de un archivo local 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -119,7 +119,7 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Opción 1: Subir imagen local */}
+              {/* Subir imagen local */}
               <div>
                 <p className="text-sm font-medium text-gray-400 mb-3">Subir tu propia imagen (Max 2MB)</p>
                 <label className="flex items-center justify-center gap-2 w-full bg-[#161a1d] border-2 border-dashed border-[#30363d] hover:border-emerald-500 text-gray-300 hover:text-emerald-400 p-4 rounded-xl cursor-pointer transition-colors group">
@@ -135,7 +135,7 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
                 <div className="h-px bg-[#30363d] flex-1"></div>
               </div>
 
-              {/* Opción 2: Galería de avatares */}
+              {/* Galería de avatares */}
               <div className="grid grid-cols-3 gap-4">
                 {PREDEFINED_AVATARS.map((url, i) => (
                   <button 

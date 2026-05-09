@@ -16,12 +16,11 @@ export default async function WorkspacePage() {
   const currentUser = await prisma.user.findUnique({
     where: { email: session.user.email },
     include: {
-      // AQUÍ ESTÁ LA MAGIA DE LAS NOTIFICACIONES
       receivedInvitations: {
         where: { status: "PENDIENTE" },
         include: {
-          taskyspace: { select: { name: true } }, // Para saber a qué proyecto te invitan
-          inviter: { select: { name: true, image: true } } // Para saber quién te invitó
+          taskyspace: { select: { name: true } }, 
+          inviter: { select: { name: true, image: true } } 
         }
       }
     }
@@ -31,7 +30,7 @@ export default async function WorkspacePage() {
     redirect("/login");
   }
 
-  // 2. Buscamos los espacios e INCLUIMOS EL ROL del usuario actual
+  
   const userSpaces = await prisma.taskyspace.findMany({
     where: {
       members: {
@@ -41,7 +40,7 @@ export default async function WorkspacePage() {
     include: {
       members: {
         where: { userId: currentUser.id },
-        select: { role: true } // <-- Traemos el rol para mostrarlo en la UI
+        select: { role: true } 
       }
     },
     orderBy: {

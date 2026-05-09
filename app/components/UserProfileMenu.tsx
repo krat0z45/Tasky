@@ -5,7 +5,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { signOut } from 'next-auth/react';
 import { User, Settings, Moon, ExternalLink, LogOut } from 'lucide-react';
 import Link from 'next/link'; 
-import QuickstartModal from './QuickstartModal'; // <-- IMPORTAMOS EL MODAL
+import QuickstartModal from './QuickstartModal'; 
 
 interface UserProfileMenuProps {
   user: {

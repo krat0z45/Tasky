@@ -23,7 +23,7 @@ export default function EpicModal({ epic, tasks, columns, onClose, onSave, readO
     onClose();
   };
 
-  // --- CÁLCULOS DE LA ÉPICA ---
+  //CÁLCULOS DE LA ÉPICA
   const doneColumn = columns.find((c: any) => ['LISTO', 'DONE', 'COMPLETADO', 'FINALIZADO', 'HECHO'].includes(c.title.toUpperCase().trim()));
   const completedTasks = tasks.filter((t: any) => t.columnId === doneColumn?.id);
   
@@ -67,7 +67,7 @@ export default function EpicModal({ epic, tasks, columns, onClose, onSave, readO
           {/* PANEL IZQUIERDO (INFO & STATS) */}
           <div className="w-full md:w-72 shrink-0 flex flex-col gap-6">
             
-            {/* 🔥 NUEVO CAMPO: DESCRIPCIÓN 🔥 */}
+            {/*CAMPO: DESCRIPCIÓN*/}
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                 <AlignLeft size={14} /> Descripción y Objetivos

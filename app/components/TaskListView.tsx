@@ -52,7 +52,7 @@ export default function TaskListView({ tasks, columns, sprints, epics, onTaskCli
           </div>
         </div>
 
-        {/* TABLA ESTILO JIRA */}
+        {/* AQUI SE PRESENTA NUESTRA TABLA */}
         <div className="bg-[#161a1d] border border-[#30363d] rounded-xl overflow-hidden shadow-lg">
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left border-collapse min-w-[1000px]">

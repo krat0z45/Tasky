@@ -16,7 +16,7 @@ interface PublicProfileClientProps {
 export default function PublicProfileClient({ targetUser, currentUser, isOwnProfile }: PublicProfileClientProps) {
   const router = useRouter();
 
-  // Formatear la fecha para que se vea bonita (Ej: "marzo de 2026")
+
   const joinDate = new Date(targetUser.createdAt).toLocaleDateString('es-ES', {
     month: 'long',
     year: 'numeric'
@@ -60,7 +60,7 @@ export default function PublicProfileClient({ targetUser, currentUser, isOwnProf
 
           <div className="px-8 pb-10 relative">
             
-            {/* Foto de Perfil (Flotando entre el banner y el contenido) */}
+            {/* Foto de Perfil  */}
             <div className="flex justify-between items-end -mt-16 mb-6">
               <div className="w-32 h-32 rounded-full border-4 border-[#161a1d] bg-[#1d2125] flex items-center justify-center text-4xl font-bold text-emerald-400 shadow-xl overflow-hidden relative z-10">
                 {targetUser.image ? (

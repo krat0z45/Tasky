@@ -4,7 +4,7 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 const prismaClientSingleton = () => {
-  // 1. Tomamos la URL de Neon desde el archivo .env
+  // 1. Tomamos la URL de Neon desde el archivo de nuestras variables de entorno
   const connectionString = `${process.env.DATABASE_URL}`;
   
   // 2. Creamos un "Pool"

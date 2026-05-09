@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
     if (!email) return new NextResponse("Falta el email", { status: 400 });
 
-    // Buscamos al usuario en Neon
+    // Buscamos al usuario en nuestra base de datos Neon
     const user = await prisma.user.findUnique({
       where: { email },
       select: { id: true, name: true, email: true, image: true } 

@@ -9,9 +9,9 @@ export default function LoadingTaskyspace() {
         
         {/* Logo animado */}
         <div className="relative flex items-center justify-center w-20 h-20 rounded-2xl bg-[#161a1d] border border-[#30363d] shadow-[0_0_40px_rgba(16,185,129,0.15)]">
-          {/* Anillo giratorio externo */}
+          
           <div className="absolute inset-0 border-2 border-transparent border-t-emerald-500 rounded-2xl animate-spin"></div>
-          {/* Anillo giratorio interno (más rápido) */}
+          
           <div className="absolute inset-2 border-2 border-transparent border-b-cyan-500 rounded-xl animate-[spin_1s_linear_infinite_reverse]"></div>
           
           <Target className="w-8 h-8 text-emerald-400 relative z-10" />

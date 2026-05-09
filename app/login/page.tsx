@@ -21,7 +21,7 @@ export default function LoginPage() {
   const handleCredentialsLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true); // Encendemos el overlay
+    setIsLoading(true); 
     
     try {
       const res = await signIn('credentials', {
@@ -32,11 +32,10 @@ export default function LoginPage() {
 
       if (res?.error) {
         setError('Credenciales inválidas. Intenta de nuevo.');
-        setIsLoading(false); // Apagamos el overlay si hay error
+        setIsLoading(false); 
       } else {
         router.push('/dashboard');
-        // No apagamos el loading aquí porque la redirección toma tiempo
-        // y queremos que el overlay se quede hasta que la página cambie
+       
       }
     } catch (err) {
       setError('Ocurrió un error inesperado.');
@@ -51,7 +50,7 @@ export default function LoginPage() {
     
     try {
       await signIn('google', { callbackUrl: '/dashboard' });
-      // Igual que arriba, NextAuth se encarga de la redirección
+      
     } catch (err) {
       setError('Error al conectar con Google.');
       setIsLoading(false);
@@ -60,7 +59,7 @@ export default function LoginPage() {
 
   return (
     <>
-      {/* Si isLoading es true, se renderiza nuestro componente a pantalla completa sobre todo lo demás */}
+      
       {isLoading && <AuthLoadingOverlay />}
 
       <div className="min-h-screen flex items-center justify-center bg-[#1d2125] p-4 font-sans text-[#c9d1d9]">
@@ -76,7 +75,7 @@ export default function LoginPage() {
 
           {/* Botón de Google Actualizado */}
           <button 
-            type="button" // Previene que intente enviar el form si se hace click rápido
+            type="button"
             disabled={isLoading}
             onClick={handleGoogleSignIn}
             className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-gray-900 font-semibold py-2.5 px-4 rounded-lg transition-colors mb-6 disabled:opacity-50 disabled:cursor-not-allowed"

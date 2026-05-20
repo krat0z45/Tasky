@@ -7,7 +7,7 @@ import TaskyspaceClient from "./TaskyspaceClient";
 
 export default async function TaskyspacePage({ params }: { params: Promise<{ id: string }> }) {
   
-  // 2. Resolvemos la promesa ANTES de usar el ID
+  // Resolvemos la promesa ANTES de usar el ID
   const resolvedParams = await params;
   const workspaceId = resolvedParams.id;
 
@@ -44,7 +44,7 @@ export default async function TaskyspacePage({ params }: { params: Promise<{ id:
       sprints: { 
         orderBy: { createdAt: 'asc' } 
       },
-      // 🔥 AÑADIDO: Cargamos las Épicas
+      
       epics: {
         orderBy: { createdAt: 'asc' }
       }
@@ -53,7 +53,7 @@ export default async function TaskyspacePage({ params }: { params: Promise<{ id:
 
   if (!space) redirect("/workspace");
 
-  // Descubrimos qué rol tiene el usuario actual en ESTE proyecto
+  
   const currentMemberRecord = space.members.find(m => m.userId === dbUser.id);
   const currentUserRole = currentMemberRecord?.role || 'Solo Visor';
 

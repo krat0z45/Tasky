@@ -7,14 +7,14 @@ datasource db {
 }
 
 
-// Sprints (Iteraciones de trabajo)
+// Sprints (Iteraciones de trabajo)    //Luis 21
 model Sprint {
   id           String     @id @default(cuid())
-  name         String     // Ej: "Sprint 1", "KickOff"
-  goal         String?    @db.Text // Objetivo del Sprint
+  name         String     
+  goal         String?    @db.Text 
   startDate    DateTime?
   endDate      DateTime?
-  status       String     @default("PLANNED") // "PLANNED", "ACTIVE", "COMPLETED"
+  status       String     @default("PLANNED") 
   
   taskyspaceId String
   taskyspace   Taskyspace @relation(fields: [taskyspaceId], references: [id], onDelete: Cascade)
@@ -26,7 +26,7 @@ model Sprint {
   updatedAt    DateTime   @updatedAt
 }
 
-// Épicas (Grandes iniciativas que agrupan tareas)
+// Épicas (Grandes iniciativas que agrupan tareas)     //Luis 21
 model Epic {
   id           String     @id @default(cuid())
   name         String     
@@ -41,7 +41,7 @@ model Epic {
   updatedAt    DateTime   @updatedAt
 }
 
-// --- TABLAS DE NEXTAUTH ---
+// TABLAS DE NEXTAUTH 
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -68,7 +68,7 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// --- MODELO DE USUARIO ---
+// MODELO DE USUARIO 
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -86,20 +86,20 @@ model User {
   receivedInvitations Invitation[] @relation("ReceivedInvitations") 
   
   // Tareas relacionadas
-  assignedTasks       Task[]       @relation("TaskAssignee") // Tareas que tiene asignadas
-  tasksSupported      Task[]       @relation("TaskSupport")  // Tareas donde es apoyo
-  tasksAuthored       Task[]       @relation("TaskAuthor")   // Tareas que creó
+  assignedTasks       Task[]       @relation("TaskAssignee") 
+  tasksSupported      Task[]       @relation("TaskSupport")  
+  tasksAuthored       Task[]       @relation("TaskAuthor")   
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
 
-// --- MODELOS DE TASKY ---
+// MODELOS DE TASKY        //luis 21
 
 model Taskyspace {
   id          String    @id @default(cuid())
   name        String
-  privacy     String    // "Abierto" o "Privado"
+  privacy     String    
   password    String?   
   
   ownerId     String
@@ -117,10 +117,10 @@ model Taskyspace {
   updatedAt   DateTime  @updatedAt
 }
 
-// Miembros de un equipo
+// Miembros de un equipo     //Luis 21
 model Member {
   id           String     @id @default(cuid())
-  role         String     // "Administrador", "Miembro", "Solo Visor"
+  role         String     
   
   userId       String
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -131,7 +131,7 @@ model Member {
   @@unique([userId, taskyspaceId])
 }
 
-// Columnas del Kanban 
+// Columnas del Kanban      //Luis 21
 model Column {
   id           String     @id @default(cuid())
   title        String     
@@ -144,7 +144,7 @@ model Column {
   tasks        Task[]
 }
 
-// Tipos de actividades (Ej: Tarea, Historia, Error)
+// Tipos de actividades (Ej: Tarea, Historia, Error)      //Luis 21
 model ActivityType {
   id           String     @id @default(cuid())
   name         String
@@ -155,7 +155,7 @@ model ActivityType {
   tasks        Task[]
 }
 
-// Tareas individuales (Las tarjetas)
+// Tareas individuales (Las tarjetas)       //Luis 21
 model Task {
   id                 String        @id @default(cuid()) 
   title              String
@@ -163,17 +163,17 @@ model Task {
   order              Int           @default(0) 
   isCompleted        Boolean       @default(false)
   
-  // --- NUEVOS CAMPOS DEL EXCEL (BACKLOG SPRINT) ---
-  type               String?       @default("Task") // Task, Feature, Bug, Doc
-  priority           String?       @default("Media") // Alta, Media, Baja
-  effortHours        Float?        @default(0)       // Esfuerzo (hrs)
-  dueDate            DateTime?     // Fecha objetivo
-  isBlocked          Boolean       @default(false)   // Bloqueado (sí/no)
-  dependencies       String?                         // Dependencias (Ej. "TK-01")
-  acceptanceCriteria String?       @db.Text          // Criterios de aceptación
-  prLink             String?                         // Link PR
-  notes              String?       @db.Text          // Notas adicionales
-  closedAt           DateTime?                       // Fecha de cierre
+//NUEVOS CAMPOS DEL EXCEL (BACKLOG SPRINT) 
+  type               String?       @default("Task") 
+  priority           String?       @default("Media") 
+  effortHours        Float?        @default(0)       
+  dueDate            DateTime?     
+  isBlocked          Boolean       @default(false)   
+  dependencies       String?                         
+  acceptanceCriteria String?       @db.Text          
+  prLink             String?                         
+  notes              String?       @db.Text          
+  closedAt           DateTime?                       
   
   //RELACIÓN DE SUB-TAREAS 
   parentId           String?
@@ -183,7 +183,7 @@ model Task {
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
-  // --- RELACIONES ---
+  // RELACIONES 
   sprintId           String?
   sprint             Sprint?       @relation(fields: [sprintId], references: [id], onDelete: SetNull)
 
@@ -209,7 +209,7 @@ model Task {
   author             User?         @relation("TaskAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 }
 
-// --- SISTEMA DE INVITACIONES ---
+// SISTEMA DE INVITACIONES
 model Invitation {
   id             String     @id @default(cuid())
   role           String     

@@ -24,7 +24,7 @@ export default function TaskListView({ tasks, columns, sprints, epics, onTaskCli
     return new Date(dateString).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  // Filtrado básico por búsqueda
+  // Filtrado para buscar actividades
   const filteredTasks = tasks.filter((task: any) => 
     task.title.toLowerCase().includes(searchTerm.toLowerCase())
   );

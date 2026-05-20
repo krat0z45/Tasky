@@ -4,13 +4,15 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Layout, Users, Plus, Search, Target, Trash2, ExternalLink, User as UserIcon, X, ChevronDown, BarChart2, CheckCircle, Clock, ArchiveRestore, AlertCircle, AlertTriangle, ListTodo, Play, Check, Layers, List, Menu, GitCommit } from 'lucide-react';
+import { Layout, Users, Plus, Search, Target, Trash2, ExternalLink, User as UserIcon, X, ChevronDown, BarChart2, CheckCircle, Clock, ArchiveRestore, AlertCircle, AlertTriangle, ListTodo, Play, Check, Layers, List, Menu, GitCommit, Mail } from 'lucide-react';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 import TaskModal from '../../components/TaskModal';
 import TaskListView from '../../components/TaskListView';
 import EpicModal from '../../components/EpicModal'; 
+
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const getRoleBadgeStyle = (roleName: string) => {
   switch(roleName) {
@@ -95,10 +97,16 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
 
+  // --- NUEVO: ESTADOS DE RECHAZO ---
+  const [rejectData, setRejectData] = useState<any | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  // ---------------------------------
+
   const isAdmin = userRole === 'Administrador';
   const isPM = userRole === 'Project Manager';
   const isPO = userRole === 'Product Owner';
   const isTechLead = userRole === 'Tech Lead';
+  const isTester = userRole === 'Tester';
   
   const canEdit = userRole !== 'Solo Visor'; 
   const canManageSprints = isAdmin || isPM; 
@@ -136,6 +144,57 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   
   const progressPercentage = totalEffortHours > 0 ? Math.round((completedEffortHours / totalEffortHours) * 100) : (totalSprintTasksCount === 0 ? 0 : Math.round((doneTasksCount / totalSprintTasksCount) * 100));
 
+  let burndownData: any[] = [];
+  if (viewedSprint && viewedSprint.startDate && viewedSprint.endDate) {
+    const start = new Date(viewedSprint.startDate);
+    const end = new Date(viewedSprint.endDate);
+    const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)));
+    
+    const dailyBurnRate = totalEffortHours / totalDays;
+    let actualRemaining = totalEffortHours;
+    
+    for (let i = 0; i <= totalDays; i++) {
+      const currentDayDate = new Date(start);
+      currentDayDate.setDate(start.getDate() + i);
+      
+      const idealRemaining = Math.max(0, totalEffortHours - (dailyBurnRate * i));
+      const isFutureDate = currentDayDate > new Date();
+      
+      let dayActual = null;
+      if (!isFutureDate) {
+         const closedEffortUpToThisDay = doneTasksList.reduce((sum: number, task: any) => {
+            if (task.closedAt && new Date(task.closedAt) <= currentDayDate) {
+              return sum + (Number(task.effortHours) || 0);
+            }
+            return sum;
+         }, 0);
+         dayActual = totalEffortHours - closedEffortUpToThisDay;
+      }
+
+      burndownData.push({
+        day: `Día ${i}`,
+        ideal: Math.round(idealRemaining * 10) / 10,
+        actual: dayActual !== null ? Math.round(dayActual * 10) / 10 : null,
+      });
+    }
+  }
+
+  const esfuerzoIndividualData = space.members.map((m: any) => {
+    const asignadas = viewedSprintTasks
+      .filter((t: any) => t.assigneeId === m.userId)
+      .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
+      
+    const completadas = viewedSprintTasks
+      .filter((t: any) => t.assigneeId === m.userId && t.columnId === doneColumn?.id)
+      .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
+
+    return {
+      nombre: m.user.name.split(' ')[0], 
+      asignadas: asignadas,
+      completadas: completadas
+    };
+  }).filter((data: any) => data.asignadas > 0 || data.completadas > 0); 
+
   const blockedTasksCount = viewedSprintTasks.filter((t: any) => t.isBlocked).length;
   const highPriorityCount = viewedSprintTasks.filter((t: any) => t.priority === 'Alta' && t.columnId !== doneColumn?.id).length;
 
@@ -152,14 +211,13 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleToggleSubtaskStatus = async (subtaskId: string, isCurrentlyDone: boolean) => {
-    // 🔥 VALIDACIÓN MAESTRA DE SEGURIDAD PARA SUB-TAREAS 🔥
     const st = allTasks.find((t:any) => t.id === subtaskId);
     if (st && !isAdmin) {
       if (!st.assigneeId) {
-        return alert("⚠️ Acción bloqueada: Debes asignarte esta sub-tarea antes de poder completarla.");
+        return alert(" Acción bloqueada: Debes asignarte esta sub-tarea antes de poder completarla.");
       }
       if (st.assigneeId !== currentUser.id) {
-        return alert("❌ Permiso denegado: Esta sub-tarea está asignada a otro miembro del equipo.");
+        return alert(" Permiso denegado: Esta sub-tarea está asignada a otro miembro del equipo.");
       }
     }
 
@@ -216,7 +274,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
   const handleDeleteEpic = async (epicId: string) => {
     if (!isAdmin) return alert("Solo el Administrador puede borrar Épicas.");
-    if (!confirm("⚠️ ¿Eliminar esta Épica? Las tareas asociadas perderán esta etiqueta, pero NO se borrarán.")) return;
+    if (!confirm(" ¿Eliminar esta Épica? Las tareas asociadas perderán esta etiqueta, pero NO se borrarán.")) return;
     setEpics(epics.filter((e:any) => e.id !== epicId));
     setColumns((prev: any) => prev.map((col: any) => ({ ...col, tasks: col.tasks.map((t: any) => t.epicId === epicId ? { ...t, epicId: null } : t) })));
     await fetch(`/api/epics?epicId=${epicId}`, { method: 'DELETE' });
@@ -224,18 +282,38 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleStartSprint = async (sprintId: string) => {
-    if (!canManageSprints) return alert("❌ Solo el Project Manager o Administrador pueden iniciar Sprints.");
-    if (activeSprint) return alert("❌ Error: Ya hay un Sprint activo. Debes completarlo antes de iniciar otro.");
-    const startDate = new Date(); const endDate = new Date(); endDate.setDate(startDate.getDate() + 14);
-    const res = await fetch('/api/sprints', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sprintId, status: 'ACTIVE', startDate, endDate }) });
-    if (res.ok) { setSprints(sprints.map((s: any) => s.id === sprintId ? { ...s, status: 'ACTIVE', startDate, endDate } : s)); setSelectedSprintId(sprintId); setActiveView('tablero'); router.refresh(); }
+    if (!canManageSprints) return alert(" Solo el Project Manager o Administrador pueden iniciar Sprints.");
+    if (activeSprint) return alert(" Error: Ya hay un Sprint activo. Debes completarlo antes de iniciar otro.");
+    
+    const diasInput = prompt("¿Cuántos días durará este Sprint? (A partir de hoy)", "5");
+    if (diasInput === null) return; 
+    
+    const dias = parseInt(diasInput, 10);
+    if (isNaN(dias) || dias <= 0) return alert(" Por favor ingresa un número válido de días mayor a 0.");
+
+    const startDate = new Date(); 
+    const endDate = new Date(); 
+    endDate.setDate(startDate.getDate() + dias);
+    
+    const res = await fetch('/api/sprints', { 
+      method: 'PATCH', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ sprintId, status: 'ACTIVE', startDate, endDate }) 
+    });
+    
+    if (res.ok) { 
+      setSprints(sprints.map((s: any) => s.id === sprintId ? { ...s, status: 'ACTIVE', startDate, endDate } : s)); 
+      setSelectedSprintId(sprintId); 
+      setActiveView('tablero'); 
+      router.refresh(); 
+    }
   };
 
   const handleCompleteSprint = async (sprintId: string) => {
-    if (!canManageSprints) return alert("🛡️ Acceso denegado: Solo el Project Manager o Administrador pueden dar por completado un Sprint.");
+    if (!canManageSprints) return alert(" Acceso denegado: Solo el Project Manager o Administrador pueden dar por completado un Sprint.");
     const sprintTasks = allTasks.filter((t: any) => t.sprintId === sprintId);
     const incompleteTasks = sprintTasks.filter((t: any) => t.columnId !== doneColumn?.id);
-    if (incompleteTasks.length > 0) return alert(`❌ No puedes completar este Sprint. Aún hay ${incompleteTasks.length} tarea(s) fuera de la columna '${doneColumn?.title || 'Listo'}'.`);
+    if (incompleteTasks.length > 0) return alert(`No puedes completar este Sprint. Aún hay ${incompleteTasks.length} tarea(s) fuera de la columna '${doneColumn?.title || 'Listo'}'.`);
     if (!confirm("¿Seguro que quieres dar por completado este sprint?")) return;
     const res = await fetch('/api/sprints', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sprintId, status: 'COMPLETED' }) });
     if (res.ok) { setSprints(sprints.map((s: any) => s.id === sprintId ? { ...s, status: 'COMPLETED' } : s)); setSelectedSprintId(sprintId); setActiveView('tablero'); router.refresh(); }
@@ -243,7 +321,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
   const handleDeleteSprint = async (sprintId: string) => {
     if (!canManageSprints) return alert("Solo PM o Admin pueden borrar sprints.");
-    if (!confirm("⚠️ ¿Eliminar este Sprint? Las tareas regresarán al Backlog.")) return;
+    if (!confirm(" ¿Eliminar este Sprint? Las tareas regresarán al Backlog.")) return;
     setSprints(sprints.filter((s:any) => s.id !== sprintId));
     setColumns((prev: any) => prev.map((col: any) => ({ ...col, tasks: col.tasks.map((t: any) => t.sprintId === sprintId ? { ...t, sprintId: null } : t) })));
     await fetch(`/api/sprints?sprintId=${sprintId}`, { method: 'DELETE' }); router.refresh();
@@ -254,20 +332,46 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const { source, destination, draggableId } = result;
     if (!destination || (source.droppableId === destination.droppableId && source.index === destination.index)) return;
 
+    let newColumns = JSON.parse(JSON.stringify(columns));
+    let movedTask: any = null;
+    let sourceCol: any = null;
+    let destCol: any = null;
+
+    for (let col of newColumns) {
+      if (col.id === source.droppableId) sourceCol = col;
+      if (col.id === destination.droppableId) destCol = col;
+      const taskIndex = col.tasks.findIndex((t: any) => t.id === draggableId);
+      if (taskIndex > -1 && !movedTask) { movedTask = col.tasks[taskIndex]; }
+    }
+
+    if (!movedTask || !sourceCol || !destCol) return;
+
+    // --- NUEVO: INTERCEPCIÓN DE RECHAZO ---
+    if (destCol.order < sourceCol.order) {
+      const isTesterOrLead = isTester || isTechLead || isAdmin;
+      if (!isTesterOrLead) {
+        alert("❌ Movimiento bloqueado: Solo los Testers o el Tech Lead pueden rechazar y regresar tickets.");
+        return; 
+      }
+      // Guardamos la info temporalmente y abrimos el modal
+      setRejectData({ result, movedTask, destCol });
+      setRejectReason('');
+      return;
+    }
+    // --------------------------------------
+
     if (source.droppableId !== destination.droppableId && destination.droppableId === doneColumn?.id) {
       if (!canApproveDone) {
-        alert("❌ Movimiento bloqueado: Solo el Tech Lead (o Admin) puede validar y pasar tickets a la columna 'Listo'.");
+        alert(" Movimiento bloqueado: Solo el Tech Lead (o Admin) puede validar y pasar tickets a la columna 'Listo'.");
         return;
       }
     }
 
-    let newColumns = JSON.parse(JSON.stringify(columns));
-    let movedTask: any = null;
+    // Removiendo la tarea de su columna original
     for (let col of newColumns) {
       const taskIndex = col.tasks.findIndex((t: any) => t.id === draggableId);
-      if (taskIndex > -1) { movedTask = col.tasks.splice(taskIndex, 1)[0]; break; }
+      if (taskIndex > -1) { col.tasks.splice(taskIndex, 1); break; }
     }
-    if (!movedTask) return;
 
     movedTask.columnId = destination.droppableId;
 
@@ -280,7 +384,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
         });
 
         if (hasIncomplete) {
-          alert("❌ Acción bloqueada: No puedes mover esta tarea a 'Listo' porque aún tiene sub-tareas pendientes por completar.");
+          alert(" Acción bloqueada: No puedes mover esta tarea a 'Listo' porque aún tiene sub-tareas pendientes por completar.");
           return; 
         }
         movedTask.closedAt = new Date().toISOString(); 
@@ -289,9 +393,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
         movedTask.closedAt = null; 
       }
     }
-
-    const destCol = newColumns.find((c: any) => c.id === destination.droppableId);
-    const sourceCol = newColumns.find((c: any) => c.id === source.droppableId);
 
     const destSprintTasks = destCol.tasks.filter((t: any) => t.sprintId === viewedSprint?.id && !t.parentId).sort((a: any, b: any) => a.order - b.order);
     const destOtherTasks = destCol.tasks.filter((t: any) => t.sprintId !== viewedSprint?.id || t.parentId); 
@@ -323,6 +424,69 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
       } catch (error) { console.error(error); }
     }
   };
+
+  // --- NUEVO: FUNCIÓN PARA CONFIRMAR RECHAZO ---
+  const handleConfirmReject = async () => {
+    if (!rejectData || !rejectReason.trim()) return;
+    const { result, movedTask, destCol } = rejectData;
+    const { source, destination } = result;
+
+    let newColumns = JSON.parse(JSON.stringify(columns));
+    
+    // Generamos la nota roja de rechazo
+    const currentDate = new Date().toLocaleString('es-ES');
+    const rejectionNote = `\n\n🚨 [RECHAZADO POR QA - ${currentDate}]\nMotivo: ${rejectReason}`;
+    
+    let taskToMove: any = null;
+    let sourceCol: any = null;
+    
+    // Lo sacamos de su lugar original y le inyectamos la nota y le quitamos la fecha de cierre
+    for (let col of newColumns) {
+      if (col.id === source.droppableId) sourceCol = col;
+      const taskIndex = col.tasks.findIndex((t: any) => t.id === movedTask.id);
+      if (taskIndex > -1) { 
+        taskToMove = col.tasks.splice(taskIndex, 1)[0]; 
+        taskToMove.notes = (taskToMove.notes || '') + rejectionNote;
+        taskToMove.columnId = destination.droppableId;
+        taskToMove.closedAt = null; 
+        break; 
+      }
+    }
+
+    const destColRef = newColumns.find((c: any) => c.id === destination.droppableId);
+    const destSprintTasks = destColRef.tasks.filter((t: any) => t.sprintId === viewedSprint?.id && !t.parentId).sort((a: any, b: any) => a.order - b.order);
+    const destOtherTasks = destColRef.tasks.filter((t: any) => t.sprintId !== viewedSprint?.id || t.parentId); 
+    destSprintTasks.splice(destination.index, 0, taskToMove);
+    destSprintTasks.forEach((t: any, i: number) => t.order = i);
+    destColRef.tasks = [...destSprintTasks, ...destOtherTasks];
+
+    const sourceSprintTasks = sourceCol.tasks.filter((t: any) => t.sprintId === viewedSprint?.id && !t.parentId).sort((a: any, b: any) => a.order - b.order);
+    const sourceOtherTasks = sourceCol.tasks.filter((t: any) => t.sprintId !== viewedSprint?.id || t.parentId);
+    sourceSprintTasks.forEach((t: any, i: number) => t.order = i);
+    sourceCol.tasks = [...sourceSprintTasks, ...sourceOtherTasks];
+
+    setColumns(newColumns);
+    setRejectData(null); // Ocultar Modal
+
+    try {
+      const tasksToUpdate: any[] = [];
+      destSprintTasks.forEach((t: any) => tasksToUpdate.push({ id: t.id, columnId: destColRef.id, order: t.order }));
+      sourceSprintTasks.forEach((t: any) => tasksToUpdate.push({ id: t.id, columnId: sourceCol.id, order: t.order }));
+      await fetch('/api/tasks/reorder', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tasks: tasksToUpdate }) });
+      
+      // Guardar el rechazo (La Nota) en la base de datos
+      await fetch('/api/tasks', { 
+        method: 'PATCH', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ 
+          taskId: taskToMove.id, 
+          notes: taskToMove.notes,
+          closedAt: null
+        }) 
+      });
+    } catch (error) { console.error(error); }
+  };
+  // ---------------------------------------------
 
   const onDragEndBacklog = async (result: any) => {
     const { source, destination, draggableId } = result;
@@ -404,11 +568,8 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const targetTask = allTasks.find((t:any) => t.id === taskId);
     const isSubtask = !!targetTask?.parentId;
 
-    // 🔥 FILTRO DE SEGURIDAD PARA ASIGNACIONES 🔥
     if (!isAdmin && !isPM) {
       if (isSubtask) {
-        // En sub-tareas, dejamos que el TechLead asigne a quien sea.
-        // Si es un Developer normal, solo puede auto-asignárselo.
         if (!isTechLead && assigneeId !== currentUser.id && assigneeId !== "") {
            return alert("❌ Solo puedes asignarte la sub-tarea a ti mismo. Deja que el Tech Lead asigne a otros.");
         }
@@ -481,7 +642,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   const stCol = columns.find((c:any) => c.id === st.columnId);
                   const isStDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
                   
-                  // 🔥 SEGURO EN UI EXTERNA: Checkbox bloqueado si no es tuyo o no tiene dueño
                   const canCompleteThis = isAdmin || (st.assigneeId === currentUser.id);
                   const isCheckboxDisabled = !canEdit || !canCompleteThis;
 
@@ -518,7 +678,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const isExpanded = expandedTasks[task.id];
     
     const isMyTask = task.assigneeId === currentUser.id;
-    const canDragThisTask = isAdmin || isPM || isTechLead || isMyTask;
+    const canDragThisTask = isAdmin || isPM || isTechLead || isMyTask || isTester;
     const isDragDisabled = !canDragThisTask || !isViewedSprintActive;
 
     return (
@@ -537,7 +697,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${getTypeColor(task.type)}`}>{task.type || 'Task'}</span>
                   {epic && (
                     <span className="text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-purple-500/50 bg-purple-500/10 text-purple-300 font-extrabold shadow-[0_0_10px_rgba(168,85,247,0.4)] truncate max-w-[120px]">
-                      🚀 {epic.name}
+                      {epic.name}
                     </span>
                   )}
                   <span title={`Prioridad: ${task.priority || 'Media'}`} className={`ml-auto w-2 h-2 rounded-full shrink-0 ${task.priority === 'Alta' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' : task.priority === 'Baja' ? 'bg-blue-500' : 'bg-yellow-500'}`}></span>
@@ -551,7 +711,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                     const stCol = columns.find((c:any) => c.id === st.columnId);
                     const stDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
                     
-                    // 🔥 SEGURO EN UI EXTERNA: Checkbox bloqueado si no es tuyo o no tiene dueño
+                    
                     const canCompleteThis = isAdmin || (st.assigneeId === currentUser.id);
                     const isCheckboxDisabled = !canEdit || !canCompleteThis;
 
@@ -655,6 +815,64 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
           readOnly={!canManageBacklog}
         />
       )}
+
+      {/* --- NUEVO: MODAL DE RECHAZO DE TICKET --- */}
+      {rejectData && (
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#1d2125] border border-red-900/50 rounded-2xl w-full max-w-lg shadow-2xl shadow-red-900/20 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="h-1.5 w-full bg-red-500"></div>
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-400">
+                  <AlertCircle size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Rechazar Ticket</h3>
+                  <p className="text-sm text-gray-400 truncate max-w-[300px]">{rejectData.movedTask.title}</p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  ¿Por qué estás regresando este ticket? <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  autoFocus
+                  rows={4}
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Ej: El botón no funciona en la vista móvil..."
+                  className="w-full bg-[#161a1d] border border-[#30363d] focus:border-red-500 text-white rounded-xl p-3 outline-none transition-colors resize-none"
+                ></textarea>
+                {rejectData.movedTask.assignee ? (
+                  <p className="text-xs text-yellow-500 mt-2 flex items-center gap-1">
+                    <Mail size={12}/> La razón quedará guardada en las notas para <strong>{rejectData.movedTask.assignee.name}</strong>
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-2">La razón quedará en las notas (Nadie asignado).</p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#30363d]">
+                <button 
+                  onClick={() => { setRejectData(null); setRejectReason(''); }}
+                  className="px-4 py-2 rounded-lg text-sm font-bold text-gray-400 hover:text-white hover:bg-[#30363d] transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleConfirmReject}
+                  disabled={!rejectReason.trim()}
+                  className="bg-red-500 hover:bg-red-400 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                >
+                  Confirmar Rechazo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ----------------------------------------- */}
 
       <div className="flex h-screen bg-[#1d2125] text-[#c9d1d9] font-sans overflow-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
         
@@ -765,7 +983,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-4">Resumen Ágil del Sprint</h1>
                   <div className="flex items-center mb-6 border-b border-[#30363d] pb-4"><SprintSelector viewedSprint={viewedSprint} sprints={sprints} setSelectedSprintId={setSelectedSprintId} /></div>
-                  {!viewedSprint ? (<p className="text-gray-400 text-yellow-500 font-medium text-sm md:text-base">⚠️ No hay ningún Sprint para analizar en este momento.</p>) : (
+                  {!viewedSprint ? (<p className="text-gray-400 text-yellow-500 font-medium text-sm md:text-base"> No hay ningún Sprint para analizar en este momento.</p>) : (
                     <>
                       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                         <div className="bg-[#161a1d] p-4 md:p-5 rounded-2xl border border-[#30363d] shadow-lg relative overflow-hidden">
@@ -785,33 +1003,88 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                           <p className="text-xs md:text-sm text-gray-400 font-medium">Miembros</p><p className="text-xl md:text-2xl font-bold text-white">{space.members.length}</p>
                         </div>
                       </div>
-                      
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mt-6 md:mt-8">
-                        <div className="bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
-                          <h3 className="text-base md:text-lg font-bold text-white mb-4 md:mb-6 flex items-center gap-2"><Target className="text-emerald-400" size={18}/> Velocidad del Sprint</h3>
-                          <div className="flex items-end justify-between mb-2"><span className="text-3xl md:text-4xl font-extrabold text-white">{progressPercentage}%</span><span className="text-xs md:text-sm text-gray-400 font-medium">{pendingEffortHours} horas pendientes</span></div>
-                          <div className="w-full h-3 md:h-4 bg-[#22272b] rounded-full overflow-hidden border border-[#30363d]"><div className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-1000 ease-out relative" style={{ width: `${progressPercentage}%` }}>{isViewedSprintActive && <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>}</div></div>
-                          <div className="mt-6 md:mt-8 space-y-3"><p className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Distribución por Estado</p>{sortedColumns.map((col: any) => { const countInSprint = viewedSprintTasks.filter((t:any) => t.columnId === col.id).length; return (<div key={col.id} className="flex items-center justify-between"><div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${col.id === doneColumn?.id ? 'bg-emerald-500' : 'bg-gray-500'}`}></div><span className="text-xs md:text-sm text-gray-300 font-medium">{col.title}</span></div><span className="text-xs md:text-sm font-bold text-white bg-[#22272b] px-2 py-0.5 rounded border border-[#30363d]">{countInSprint} tickets</span></div>)})}</div>
-                        </div>
-                        <div className="bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
-                          <h3 className="text-base md:text-lg font-bold text-white mb-4 md:mb-6 flex items-center gap-2"><Clock className="text-cyan-400" size={18}/> Carga Activa</h3>
-                          <div className="space-y-4 md:space-y-5">
-                            {space.members.map((m: any) => {
-                              const userHours = memberEffort[m.userId] || 0;
-                              const activeEffort = totalEffortHours - completedEffortHours;
-                              const userPercentage = activeEffort === 0 ? 0 : Math.round((userHours / activeEffort) * 100);
-                              return (
-                                <div key={m.userId} className="group">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2 md:gap-3"><div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-emerald-900 border border-[#30363d] flex items-center justify-center text-[10px] md:text-xs font-bold text-white overflow-hidden shrink-0">{m.user.image ? <img src={m.user.image} referrerPolicy="no-referrer" className="w-full h-full object-cover" alt="avatar"/> : m.user.name.charAt(0)}</div><span className="text-xs md:text-sm text-gray-300 font-medium group-hover:text-white transition-colors truncate max-w-[100px] md:max-w-none">{m.user.name}</span></div><span className="text-xs md:text-sm font-bold text-emerald-400">{userHours}h</span>
-                                  </div>
-                                  <div className="w-full h-1 md:h-1.5 bg-[#22272b] rounded-full overflow-hidden"><div className="h-full bg-cyan-500/80 rounded-full transition-all duration-1000" style={{ width: `${userPercentage}%` }}></div></div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
+
+                      <div className="mt-6 md:mt-8 bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
+                        <h3 className="text-base md:text-lg font-bold text-white mb-4 md:mb-6 flex items-center gap-2"><Target className="text-emerald-400" size={18}/> Velocidad del Sprint</h3>
+                        <div className="flex items-end justify-between mb-2"><span className="text-3xl md:text-4xl font-extrabold text-white">{progressPercentage}%</span><span className="text-xs md:text-sm text-gray-400 font-medium">{pendingEffortHours} horas pendientes</span></div>
+                        <div className="w-full h-3 md:h-4 bg-[#22272b] rounded-full overflow-hidden border border-[#30363d]"><div className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-1000 ease-out relative" style={{ width: `${progressPercentage}%` }}>{isViewedSprintActive && <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>}</div></div>
+                        <div className="mt-6 md:mt-8 space-y-3"><p className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Distribución por Estado</p>{sortedColumns.map((col: any) => { const countInSprint = viewedSprintTasks.filter((t:any) => t.columnId === col.id).length; return (<div key={col.id} className="flex items-center justify-between"><div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${col.id === doneColumn?.id ? 'bg-emerald-500' : 'bg-gray-500'}`}></div><span className="text-xs md:text-sm text-gray-300 font-medium">{col.title}</span></div><span className="text-xs md:text-sm font-bold text-white bg-[#22272b] px-2 py-0.5 rounded border border-[#30363d]">{countInSprint} tickets</span></div>)})}</div>
                       </div>
+
+                      {(() => {
+                        const esfuerzoIndividualData = space.members.map((m: any) => {
+                          const asignadas = viewedSprintTasks
+                            .filter((t: any) => t.assigneeId === m.userId)
+                            .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
+                          const completadas = viewedSprintTasks
+                            .filter((t: any) => t.assigneeId === m.userId && t.columnId === doneColumn?.id)
+                            .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
+                          return {
+                            nombre: m.user.name.split(' ')[0], 
+                            asignadas: asignadas,
+                            completadas: completadas
+                          };
+                        }).filter((data: any) => data.asignadas > 0 || data.completadas > 0);
+
+                        return (
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mt-6 md:mt-8">
+                            
+                            <div className="bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
+                              <h3 className="text-base md:text-lg font-bold text-white mb-6 flex items-center gap-2">
+                                <BarChart2 className="text-blue-400" size={18}/> Burndown Chart
+                              </h3>
+                              {burndownData && burndownData.length > 0 ? (
+                                <div className="h-[300px] w-full">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={burndownData} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
+                                      <CartesianGrid strokeDasharray="3 3" stroke="#30363d" vertical={false} />
+                                      <XAxis dataKey="day" stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
+                                      <YAxis stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
+                                      <Tooltip contentStyle={{ backgroundColor: '#22272b', borderColor: '#30363d', borderRadius: '8px', color: '#fff' }} itemStyle={{ color: '#fff' }} />
+                                      <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                      <Line type="monotone" dataKey="ideal" name="Horas esperadas" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 0 }} activeDot={{ r: 6, fill: '#3b82f6', stroke: '#1d4ed8', strokeWidth: 2 }} />
+                                      <Line type="monotone" dataKey="actual" name="Horas ganadas" stroke="#ef4444" strokeWidth={3} dot={{ r: 4, fill: '#ef4444', strokeWidth: 0 }} activeDot={{ r: 6, fill: '#ef4444', stroke: '#7f1d1d', strokeWidth: 2 }} connectNulls={true} />
+                                    </LineChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center py-10 text-gray-500">
+                                  <AlertCircle size={32} className="mb-2 opacity-50" />
+                                  <p className="text-sm">Inicia este Sprint para generar el gráfico</p>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
+                              <h3 className="text-base md:text-lg font-bold text-white mb-6 flex items-center gap-2">
+                                <Users className="text-emerald-400" size={18}/> Esfuerzo Individual
+                              </h3>
+                              {esfuerzoIndividualData.length > 0 ? (
+                                <div className="h-[300px] w-full">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={esfuerzoIndividualData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                                      <CartesianGrid strokeDasharray="3 3" stroke="#30363d" vertical={false} />
+                                      <XAxis dataKey="nombre" stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
+                                      <YAxis stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
+                                      <Tooltip cursor={{ fill: '#22272b' }} contentStyle={{ backgroundColor: '#22272b', borderColor: '#30363d', borderRadius: '8px', color: '#fff' }} />
+                                      <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                      <Bar dataKey="asignadas" name="Horas asignadas" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                      <Bar dataKey="completadas" name="Horas Done" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                    </BarChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center py-10 text-gray-500">
+                                  <Users size={32} className="mb-2 opacity-50" />
+                                  <p className="text-sm">Asigna tareas para ver el esfuerzo</p>
+                                </div>
+                              )}
+                            </div>
+
+                          </div>
+                        );
+                      })()}
+
                     </>
                   )}
                 </div>
@@ -839,7 +1112,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
                 <DragDropContext onDragEnd={onDragEndBacklog}>
                   {sprints.filter((s:any) => showCompletedSprints ? true : s.status !== 'COMPLETED').map((sprint: any) => {
-                    const tasksInSprint = topLevelTasks.filter((t: any) => t.sprintId === sprint.id);                    return (
+                    const tasksInSprint = topLevelTasks.filter((t: any) => t.sprintId === sprint.id);                   return (
                       <div key={sprint.id} className={`mb-6 md:mb-8 bg-[#161a1d] border rounded-xl overflow-hidden ${sprint.status === 'ACTIVE' ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-[#30363d]'} ${sprint.status === 'COMPLETED' ? 'opacity-60 grayscale' : ''}`}>
                         <div className="bg-[#1d2125] p-3 md:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-[#30363d]">
                           <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full sm:w-auto">

@@ -19,7 +19,7 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      // 1. Mandamos los datos a nuestra API
+      // Mandamos los datos a nuestra API
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -27,7 +27,7 @@ export default function RegisterPage() {
       });
 
       if (res.ok) {
-        // 2. Si se registra bien, iniciamos sesión automáticamente
+        // Si se registra bien, iniciamos sesión automáticamente
         await signIn('credentials', { email, password, callbackUrl: '/dashboard' });
       } else {
         const errorData = await res.text();

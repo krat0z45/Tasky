@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Proximamente 
 ```
+tasky
+├─ app
+│  ├─ api
+│  │  ├─ auth  (completado por diego el 20)  aqui falta el route.ts
+│  │  ├─ columns  (completado por Cristian el 22)
+│  │  │  └─  route.ts (completado por Cristian el 22)
+│  │  ├─ epics
+│  │  │  └─ route.ts
+│  │  ├─ invitations
+│  │  │  └─ route.ts
+│  │  ├─ profile
+│  │  │  └─ route.ts
+│  │  ├─ register  (completado por Diego el 20)
+│  │  │  └─ route.ts  (completado por Diego el 20)
+│  │  ├─ sprints
+│  │  │  └─ route.ts
+│  │  ├─ tasks  (completado por luis el 21)
+│  │  │  ├─ reorder   (completado por Cris el 22)
+│  │  │  │  └─ route.ts   (completado por Cris el 22)
+│  │  │  └─ route.ts    (completado por luis el 21)
+│  │  ├─ taskyspaces  (completado por geras el 20)
+│  │  │  ├─ manage  (completado por geras el 20)
+│  │  │  │  └─ route.ts   (completado por geras el 20)
+│  │  │  └─ route.ts    (completado por geras el 20)
+│  │  └─ users
+│  │     └─ search
+│  │        └─ route.ts
+│  ├─ components   
+│  │  ├─ AuthLoadingOverlay.tsx     (todos los loading le tocaran a cristian)
+│  │  ├─ EpicModal.tsx
+│  │  ├─ LandingClient.tsx  (completad por cristian el 24)
+│  │  ├─ LogoutButton.tsx   (completado por luis el 22)
+│  │  ├─ QuickstartModal.tsx   (lo vamos a quitar)
+│  │  ├─ TaskListView.tsx  (completado por luis el 22)
+│  │  ├─ TaskModal.tsx   (completado por luis el 21)
+│  │  └─ UserProfileMenu.tsx
+│  ├─ dashboard  (completado por geras el 20)
+│  │  └─ page.tsx  (completado por geras el 20)
+│  ├─ favicon.ico   (predefinido por next)
+│  ├─ globals.css  (predefinido de next)
+│  ├─ layout.tsx   (predefinido por next)
+│  ├─ login  (completado por diego el 20)
+│  │  └─ page.tsx (completado por diego el 20)
+│  ├─ page.tsx     (completado por Diego el 20)
+│  ├─ profile        
+│  │  ├─ loading.tsx    (todos los loading le tocaran a cristian)
+│  │  ├─ page.tsx
+│  │  ├─ ProfileClient.tsx
+│  │  └─ [id]
+│  │     ├─ loading.tsx    (todos los loading le tocaran a cristian)
+│  │     ├─ page.tsx
+│  │     └─ PublicProfileClient.tsx
+│  ├─ register  (completado por diego el 20)
+│  │  └─ page.tsx   (completado por diego el 20)
+│  └─ workspace
+│     ├─ CreateTaskyspaceWizard.tsx    (completado por geras el 20)
+│     ├─ loading.tsx    (todos los loading le tocaran a cristian)
+│     ├─ page.tsx   (completado por Geras el 21)
+│     ├─ SpaceSettingsModal.tsx   (completado por Geras el 21)
+│     ├─ WorkspaceClient.tsx   (completado por geras el 20)
+│     └─ [id]  (completado por Diego el 20)
+│        ├─ loading.tsx  (todos los loading le tocaran a cristian)
+│        ├─ page.tsx   (completado por Diego el 20)
+│        └─ TaskyspaceClient.tsx   (completado por Cristian el 20)
+├─ docker-compose.yml   (completado por Diego el 16)
+├─ Dockerfile     (completado por Geras el 16)
+├─ eslint.config.mjs
+├─ lib  (completado por diego el 20)
+│  ├─ auth.ts  (completado por diego el 20)
+│  └─ db.ts   (completado por Diego el 20)
+├─ next.config.ts
+├─ package-lock.json
+├─ package.json
+├─ postcss.config.mjs
+├─ prisma      (completado por luis el 20)
+│  └─ schema.prisma    (completado por luis el 20  solo relacion de login y register)
+├─ prisma.config.ts     
+├─ public
+│  ├─ file.svg
+│  ├─ globe.svg
+│  ├─ next.svg
+│  ├─ vercel.svg
+│  └─ window.svg
+├─ README.md
+└─ tsconfig.json
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```

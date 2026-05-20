@@ -108,6 +108,6 @@ export default function QuickstartModal({ isOpen, onClose }: QuickstartModalProp
     </div>
   );
 
-  // AQUÍ SUCEDE LA MAGIA: Enviamos modalContent directamente al documento
+ 
   return createPortal(modalContent, document.body);
 }

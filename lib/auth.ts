@@ -32,16 +32,13 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: "/login" },
   secret: process.env.NEXTAUTH_SECRET,
   
-  // --- PROTECCIÓN PARA LAS COOKIES GRANDES ---
+ 
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
-        
-        // Si la imagen empieza con http (ej. Google), la guardamos en la cookie.
-        // Si es Base64 (data:image...), la ignoramos para que la cookie no exceda el límite de 4KB.
         if (user.image && user.image.startsWith('http')) {
           token.picture = user.image;
         } else {

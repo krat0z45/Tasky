@@ -6,19 +6,14 @@ export default function LoadingProfile() {
   return (
     <div className="min-h-screen bg-[#1d2125] text-[#c9d1d9] font-sans p-6 md:p-10 flex justify-center items-start pt-20">
       
-      {/* Contenedor principal estilo Tarjeta */}
       <div className="w-full max-w-3xl bg-[#161a1d] border border-[#30363d] rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden">
         
-        {/* Resplandor de fondo estilo Neón */}
         <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-emerald-500/5 blur-[100px] rounded-full pointer-events-none"></div>
 
-        {/* --- Contenido con animación Pulse --- */}
         <div className="flex flex-col md:flex-row items-center md:items-start gap-8 relative z-10 animate-pulse">
           
-          {/* 1. Avatar Esqueleto */}
           <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-[#22272b] border-4 border-[#1d2125] shadow-lg shrink-0"></div>
 
-          {/* 2. Información Esqueleto */}
           <div className="flex-1 space-y-6 w-full text-center md:text-left pt-2">
             
             {/* Nombre y Rol */}
@@ -39,7 +34,7 @@ export default function LoadingProfile() {
               </div>
             </div>
 
-            {/* Botón de Editar Esqueleto */}
+            {/* Botón de Editar*/}
             <div className="pt-6 flex justify-center md:justify-start">
               <div className="h-10 w-32 bg-[#2c333b] rounded-lg border border-[#30363d]"></div>
             </div>

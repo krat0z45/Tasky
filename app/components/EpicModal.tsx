@@ -1,17 +1,22 @@
 // app/components/EpicModal.tsx
+// COMPONENTE MODAL de epicas
+// el componente muestra un modal para visualizar y editar una epica
+// incluye, nombre y descripcion, lista tareas, modo solo lectura y metricas de progreso
 'use client';
 
 import React, { useState } from 'react';
 import { X, Layers, Save, CheckCircle, Clock, Target, ListTodo, AlignLeft } from 'lucide-react';
 
+// componente principal
 export default function EpicModal({ epic, tasks, columns, onClose, onSave, readOnly = false }: any) {
   
+    //estado local
   const [formData, setFormData] = useState({
     name: epic.name || '',
     description: epic.description || '',
     color: epic.color || 'bg-purple-500',
   });
-
+  //manejo de eventos
   const handleChange = (e: any) => {
     if (readOnly) return;
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -23,7 +28,7 @@ export default function EpicModal({ epic, tasks, columns, onClose, onSave, readO
     onClose();
   };
 
-  // --- CÁLCULOS DE LA ÉPICA ---
+  // calculos de metricas
   const doneColumn = columns.find((c: any) => ['LISTO', 'DONE', 'COMPLETADO', 'FINALIZADO', 'HECHO'].includes(c.title.toUpperCase().trim()));
   const completedTasks = tasks.filter((t: any) => t.columnId === doneColumn?.id);
   
@@ -31,14 +36,13 @@ export default function EpicModal({ epic, tasks, columns, onClose, onSave, readO
   const burnedEffort = completedTasks.reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
   const progressPercentage = tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0;
 
+  //renderizado
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
       <div className="w-full max-w-4xl bg-[#161a1d] border border-[#30363d] rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative">
         
-        {/* Fondo Glow */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 blur-[80px] rounded-full pointer-events-none"></div>
 
-        {/* HEADER (Nombre de la Épica) */}
         <div className="px-6 py-5 border-b border-[#30363d] flex justify-between items-start bg-[#1d2125] relative z-10">
           <div className="flex-1 pr-4">
             <div className="flex items-center gap-3 w-full group">
@@ -61,13 +65,9 @@ export default function EpicModal({ epic, tasks, columns, onClose, onSave, readO
           </button>
         </div>
 
-        {/* BODY */}
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar relative z-10 flex flex-col md:flex-row gap-8">
-          
-          {/* PANEL IZQUIERDO (INFO & STATS) */}
           <div className="w-full md:w-72 shrink-0 flex flex-col gap-6">
             
-            {/* 🔥 NUEVO CAMPO: DESCRIPCIÓN 🔥 */}
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                 <AlignLeft size={14} /> Descripción y Objetivos
@@ -81,8 +81,6 @@ export default function EpicModal({ epic, tasks, columns, onClose, onSave, readO
                 className={`w-full h-32 custom-scrollbar resize-none rounded-xl p-3 text-sm transition-colors ${readOnly ? 'bg-[#1a1e23] border border-transparent text-gray-400 cursor-not-allowed' : 'bg-[#1d2125] border border-[#30363d] text-white hover:border-purple-500/50 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50'}`}
               />
             </div>
-
-            {/* ESTADÍSTICAS */}
             <div className="bg-[#1d2125] border border-[#30363d] rounded-xl p-4">
               <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2"><Target size={14}/> Progreso Global</h4>
               <div className="flex items-end justify-between mb-2">
@@ -114,8 +112,6 @@ export default function EpicModal({ epic, tasks, columns, onClose, onSave, readO
               </div>
             </div>
           </div>
-
-          {/* PANEL DERECHO (LISTA DE TAREAS) */}
           <div className="flex-1 flex flex-col min-w-0 bg-[#1d2125] border border-[#30363d] rounded-xl p-4">
             <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2 border-b border-[#30363d] pb-3">
               <ListTodo className="text-purple-400" size={18}/> Tareas de esta Épica
@@ -159,7 +155,6 @@ export default function EpicModal({ epic, tasks, columns, onClose, onSave, readO
           </div>
         </div>
 
-        {/* FOOTER */}
         <div className="px-6 py-4 border-t border-[#30363d] bg-[#1d2125] flex justify-end gap-3 relative z-10">
           {readOnly ? (
             <button onClick={onClose} className="bg-[#2c333b] hover:bg-[#3d444d] text-white px-5 py-2 rounded-lg text-sm font-bold transition-colors">Cerrar</button>

@@ -1,5 +1,4 @@
 // app/components/AuthLoadingOverlay.tsx
-// Componente de Carga para Autenticación Estilo.
 import React from 'react';
 import { ShieldCheck, Lock, CheckCircle } from 'lucide-react';
 

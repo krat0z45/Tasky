@@ -30,7 +30,7 @@ export default function LandingClient() {
   const nextSlide = () => setCurrentSlide((prev) => (prev === carouselSlides.length - 1 ? 0 : prev + 1));
   const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? carouselSlides.length - 1 : prev - 1));
 
-  //CON ESTE CODIGO SE HACE QUE EL CARRUSEL CAMBIE CADA 5 SEGUNDOS AUTOMATICAMENTE.
+  // Auto-play del carrusel
   useEffect(() => {
     const timer = setInterval(() => {
       nextSlide();
@@ -153,7 +153,7 @@ export default function LandingClient() {
         </div>
       </section>
 
-      {/*STEPS*/}
+      {/* --- STEPS / HOW IT WORKS --- */}
       <section id="how-it-works" className="py-24 px-6 bg-[#1d2125]">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">

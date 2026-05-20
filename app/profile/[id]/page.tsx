@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "../../../lib/db";
 import PublicProfileClient from "./PublicProfileClient";
 
-
+//
 export default async function PublicProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
   const targetUserId = resolvedParams.id;
@@ -13,7 +13,6 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) redirect("/login");
 
-  
   const currentUser = await prisma.user.findUnique({
     where: { email: session.user.email }
   });

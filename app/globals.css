@@ -24,33 +24,3 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
-
-
-
-.animate-bounce-slow {
-  animation: bounce-slow 4s infinite;
-}
-
-
-@keyframes soundwave {
-  0% {
-    transform: scale(0.3);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(2);
-    opacity: 0;
-  }
-}
-
-.animate-soundwave {
-  animation: soundwave 3s cubic-bezier(0.0, 0, 0.2, 1) infinite;
-}
-
-.delay-1000 {
-  animation-delay: 1s;
-}
-
-.delay-2000 {
-  animation-delay: 2s;
-}

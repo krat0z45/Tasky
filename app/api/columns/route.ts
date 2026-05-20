@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../../../lib/auth";
 import { prisma } from "../../../lib/db";
 
-// CREAR COLUMNA
+// CREAR COLUMNA (Usado también para Activar Backlog)
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   }
 }
 
-// ELIMINAR COLUMNA 
+// ELIMINAR COLUMNA (Usado para Desactivar Backlog)
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);

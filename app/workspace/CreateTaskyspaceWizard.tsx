@@ -23,7 +23,7 @@ const defaultActivities = [
   { id: 3, name: 'Definir arquitectura de la API' },
 ];
 
-//Función helper para darle colores únicos a cada rol en la UI
+//  Función helper para darle colores únicos a cada rol en la UI
 const getRoleBadgeStyle = (roleName: string) => {
   switch(roleName) {
     case 'Administrador': return 'bg-red-500/10 text-red-400 border-red-500/20';
@@ -53,9 +53,12 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
   });
 
   const [newActivityName, setNewActivityName] = useState('');
+  
   const [newStatusName, setNewStatusName] = useState('');
   const [editingStatusId, setEditingStatusId] = useState<number | null>(null);
   const [editingStatusName, setEditingStatusName] = useState('');
+
+ 
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('Developer'); 
   const [isSearching, setIsSearching] = useState(false);
@@ -387,7 +390,8 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
           <label className="block text-sm font-bold text-gray-300">Buscar por correo electrónico <span className="text-emerald-400">*</span></label>
           <div className="flex gap-3">
             <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setSearchError(''); }} onKeyDown={(e) => { if(e.key === 'Enter') addInvitation(); }} placeholder="Ej. dev@empresa.com" className="flex-1 bg-[#161a1d] border border-[#30363d] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition-all shadow-inner"/>
-
+            
+            
             <select value={role} onChange={(e) => setRole(e.target.value)} className="bg-[#161a1d] border border-[#30363d] font-bold text-sm text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-emerald-500 transition-all outline-none">
               <option value="Developer">Developer</option>
               <option value="Project Manager">Project Manager</option>

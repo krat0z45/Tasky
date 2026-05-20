@@ -1,4 +1,3 @@
-// app/profile/page.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../lib/auth";
 import { redirect } from "next/navigation";
@@ -9,9 +8,18 @@ export default async function ProfilePage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) redirect("/login");
 
-  // Buscamos al usuario completo en la base de datos para obtener su ID y demás información
+  // Buscamos al usuario completo y AÑADIMOS SUS TICKETS ASIGNADOS
   const dbUser = await prisma.user.findUnique({
-    where: { email: session.user.email }
+    where: { email: session.user.email },
+    include: {
+      assignedTasks: {
+        include: {
+          column: true,
+          sprint: true,
+          taskyspace: true,
+        }
+      }
+    }
   });
 
   if (!dbUser) redirect("/login");
